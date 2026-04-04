@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { ExternalLink, Eye } from 'lucide-react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { ExternalLink, Eye, Activity, RefreshCw, Monitor, Smartphone, Tablet, Globe } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { DataRow, PageQuery } from '../types';
 import { formatNumber, formatPercent, formatTime, formatPosition, getTitle, isAIOQuery } from '../utils';
@@ -248,6 +248,145 @@ export function PageDetailModal({ path, isKeyword, pageListActive, data, pageQue
               <div className="p-4 text-center text-slate-400 text-xs">No Data</div>
             )}
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface RealtimeModalProps {
+  propId: string;
+  token: string;
+  onClose: () => void;
+}
+
+export function RealtimeModal({ propId, token, onClose }: RealtimeModalProps) {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+
+  const fetchData = async () => {
+    if (!token) {
+      setError('กรุณาระบุ Access Token ก่อน');
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propId}:runRealtimeReport`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dimensions: [{ name: 'unifiedScreenName' }, { name: 'deviceCategory' }, { name: 'country' }],
+          metrics: [{ name: 'activeUsers' }]
+        })
+      });
+      if (!res.ok) {
+        let errMsg = res.statusText || String(res.status);
+        try {
+          const errData = await res.json();
+          errMsg = errData?.error?.message || errData?.error || errMsg;
+        } catch (e) {}
+        const errStr = String(errMsg).toLowerCase();
+        if (res.status === 401 || res.status === 403 || errStr.includes('invalid authentication') || errStr.includes('unauthenticated')) {
+          throw new Error('Access Token ไม่ถูกต้องหรือหมดอายุ กรุณารับ Token ใหม่');
+        }
+        throw new Error(`ไม่สามารถดึงข้อมูล Realtime ได้: ${errMsg}`);
+      }
+      const json = await res.json();
+      const rows = (json.rows || []).map((r: any) => ({
+        page: r.dimensionValues[0].value,
+        device: r.dimensionValues[1].value,
+        country: r.dimensionValues[2].value,
+        users: parseInt(r.metricValues[0].value, 10)
+      })).sort((a: any, b: any) => b.users - a.users);
+      setData(rows);
+      setLastUpdated(new Date());
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 10000); // Refresh every 10s
+    return () => clearInterval(interval);
+  }, [propId, token]);
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-6 max-w-[800px] w-full max-h-[85vh] overflow-y-auto shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-4 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+              <Activity size={20} />
+            </div>
+            <div>
+              <h2 className="text-slate-900 text-[16px] font-bold flex items-center gap-2">
+                ผู้ใช้งานที่กำลังออนไลน์
+                <span className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+                </span>
+              </h2>
+              <p className="text-[11px] text-slate-500 flex items-center gap-1">
+                อัปเดตล่าสุด: {lastUpdated.toLocaleTimeString()}
+                <button onClick={fetchData} className="hover:text-indigo-600 transition-colors ml-1" title="รีเฟรช">
+                  <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+                </button>
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-all">✕ ปิด</button>
+        </div>
+
+        <div className="overflow-y-auto border border-slate-100 rounded-lg custom-scrollbar min-h-[300px] relative">
+          {loading && data.length === 0 ? (
+             <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10">
+               <RefreshCw size={24} className="animate-spin text-rose-500" />
+             </div>
+          ) : error ? (
+             <div className="p-8 text-center text-rose-600 text-[13px]">{error}</div>
+          ) : data.length === 0 ? (
+             <div className="p-8 text-center text-slate-400 text-[13px]">ไม่มีผู้ใช้งานออนไลน์ในขณะนี้</div>
+          ) : (
+            <table className="w-full text-left border-collapse text-[13px] table-fixed">
+              <thead className="bg-slate-50 text-slate-600 sticky top-0 z-10 border-b border-slate-200 shadow-sm">
+                <tr>
+                  <th className="p-3 font-semibold text-[11px] uppercase tracking-wider">หน้าเว็บ (Page Title)</th>
+                  <th className="p-3 font-semibold text-[11px] uppercase tracking-wider w-[110px]">อุปกรณ์</th>
+                  <th className="p-3 font-semibold text-[11px] uppercase tracking-wider w-[130px]">ประเทศ</th>
+                  <th className="p-3 font-semibold text-[11px] uppercase tracking-wider text-right w-[100px]">Active Users</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.map((r, i) => (
+                  <tr key={i} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                    <td className="p-3 text-slate-800 font-medium">
+                      <div className="line-clamp-2" title={r.page}>{r.page}</div>
+                    </td>
+                    <td className="p-3 text-slate-600">
+                      <div className="flex items-center gap-1.5">
+                        {r.device.toLowerCase() === 'desktop' ? <Monitor size={14} className="shrink-0" /> : r.device.toLowerCase() === 'mobile' ? <Smartphone size={14} className="shrink-0" /> : <Tablet size={14} className="shrink-0" />}
+                        <span className="capitalize truncate">{r.device}</span>
+                      </div>
+                    </td>
+                    <td className="p-3 text-slate-600">
+                      <div className="flex items-center gap-1.5">
+                        <Globe size={14} className="shrink-0" />
+                        <span className="truncate" title={r.country}>{r.country}</span>
+                      </div>
+                    </td>
+                    <td className="p-3 text-right tabular-nums font-bold text-rose-600">{r.users}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>

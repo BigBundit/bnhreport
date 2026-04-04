@@ -7,7 +7,7 @@ import { SummaryCards } from './components/SummaryCards';
 import { ChartsSection } from './components/ChartsSection';
 import { GlobalDashboards } from './components/GlobalDashboards';
 import { DataTable } from './components/DataTable';
-import { TokenModal, PageDetailModal } from './components/Modals';
+import { TokenModal, PageDetailModal, RealtimeModal } from './components/Modals';
 import { DataRow, PageListEntry, FilterState, StatusState, PageQuery } from './types';
 import { getTitle } from './utils';
 
@@ -32,10 +32,26 @@ export default function App() {
   });
   
   const [status, setStatus] = useState<StatusState>({ msg: '', type: 'info', visible: false });
-  const [modals, setModals] = useState({ tokenHelp: false, pageDetail: null as string | null });
+  const [modals, setModals] = useState({ tokenHelp: false, realtime: false, pageDetail: null as string | null });
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('');
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [activeUsers, setActiveUsers] = useState<number | null>(null);
+
+  const handleApiError = async (res: Response, prefix: string) => {
+    if (!res.ok) {
+      let errMsg = res.statusText || String(res.status);
+      try {
+        const errData = await res.json();
+        errMsg = errData?.error?.message || errData?.error || errMsg;
+      } catch (e) {}
+      const errStr = String(errMsg).toLowerCase();
+      if (res.status === 401 || res.status === 403 || errStr.includes('invalid authentication') || errStr.includes('unauthenticated')) {
+        throw new Error('Access Token ไม่ถูกต้องหรือหมดอายุ กรุณากดปุ่ม "วิธีดึง Token" เพื่อรับ Token ใหม่');
+      }
+      throw new Error(`${prefix}: ${errMsg}`);
+    }
+  };
 
   const availableCountries = useMemo(() => {
     const set = new Set<string>();
@@ -216,7 +232,7 @@ export default function App() {
           limit: 50000
         })
       });
-      if (!gaRes.ok) throw new Error(`GA4: ${(await gaRes.json()).error?.message || gaRes.status}`);
+      await handleApiError(gaRes, 'GA4');
       const gaData = await gaRes.json();
       const gaRows = (gaData.rows || []).map((r: any) => {
         const [yr, mo, dy] = r.dimensionValues[0].value.match(/(.{4})(.{2})(.{2})/).slice(1);
@@ -227,6 +243,24 @@ export default function App() {
           impressions: 0, clicks: 0, ctr: 0, position: 0
         };
       });
+
+      // Fetch Realtime Data
+      try {
+        const realtimeRes = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propId}:runRealtimeReport`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            metrics: [{ name: 'activeUsers' }]
+          })
+        });
+        if (realtimeRes.ok) {
+          const realtimeData = await realtimeRes.json();
+          const active = realtimeData.rows?.[0]?.metricValues?.[0]?.value || 0;
+          setActiveUsers(Number(active));
+        }
+      } catch (err) {
+        console.warn('Failed to fetch realtime data', err);
+      }
 
       setLoadingProgress(40);
       setLoadingMsg(`กำลังโหลด Search Console... (GA4: ${gaRows.length.toLocaleString()} rows)`);
@@ -240,7 +274,7 @@ export default function App() {
           dimensions: ['date', 'page', 'country'], rowLimit: 25000
         })
       });
-      if (!gscRes.ok) throw new Error(`GSC: ${(await gscRes.json()).error?.message || gscRes.status}`);
+      await handleApiError(gscRes, 'GSC');
       const gscData = await gscRes.json();
       const B = siteUrl.replace(/\/$/, '');
       const gscRows = (gscData.rows || []).map((r: any) => {
@@ -286,7 +320,7 @@ export default function App() {
           dimensions: ['page', 'query'], rowLimit: 25000
         })
       });
-      if (!gscKwRes.ok) throw new Error(`GSC Keywords: ${(await gscKwRes.json()).error?.message || gscKwRes.status}`);
+      await handleApiError(gscKwRes, 'GSC Keywords');
       const gscKwData = await gscKwRes.json();
       const kwMap: Record<string, PageQuery[]> = {};
       (gscKwData.rows || []).forEach((r: any) => {
@@ -358,7 +392,7 @@ export default function App() {
 
         <FilterSection filters={filters} setFilters={setFilters} onApply={applyFilters} availableCountries={availableCountries} />
         
-        <SummaryCards data={filteredData} prevData={prevFilteredData} />
+        <SummaryCards data={filteredData} prevData={prevFilteredData} activeUsers={activeUsers} onRealtimeClick={() => setModals(m => ({ ...m, realtime: true }))} />
         
         <ChartsSection data={filteredData} />
         <GlobalDashboards data={filteredData} prevData={prevFilteredData} pageQueries={pageQueries} />
@@ -376,6 +410,7 @@ export default function App() {
       </div>
 
       {modals.tokenHelp && <TokenModal onClose={() => setModals(m => ({ ...m, tokenHelp: false }))} />}
+      {modals.realtime && <RealtimeModal propId={propId} token={token} onClose={() => setModals(m => ({ ...m, realtime: false }))} />}
       {modals.pageDetail && <PageDetailModal path={modals.pageDetail} isKeyword={modals.pageDetail.startsWith('[Keyword]')} pageListActive={pageListActive} data={allData} pageQueries={pageQueries} siteUrl={siteUrl} onClose={() => setModals(m => ({ ...m, pageDetail: null }))} />}
       
       {isLoading && (
