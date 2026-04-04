@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { DataRow, PageQuery } from '../types';
 import { formatNumber } from '../utils';
 import { isAIOQuery } from '../utils';
+import { Globe, Key, Bot } from 'lucide-react';
 
 interface GlobalDashboardsProps {
   data: DataRow[];
@@ -65,13 +66,15 @@ export function GlobalDashboards({ data, pageQueries }: GlobalDashboardsProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
       {/* Country Dashboard */}
-      <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col h-[320px]">
-        <h3 className="text-indigo-900 font-bold text-[14px] mb-3 flex justify-between items-center shrink-0">
-          <span>🌍 Top Countries</span>
-          <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded font-semibold">GA4 + GSC</span>
-        </h3>
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 flex flex-col h-[340px]">
+        <div className="flex justify-between items-center mb-4 shrink-0">
+          <h3 className="text-slate-900 font-semibold text-[15px] flex items-center gap-2">
+            <Globe size={18} className="text-emerald-600" /> Top Countries
+          </h3>
+          <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400 bg-slate-100 px-2 py-1 rounded-md">GA4 + GSC</span>
+        </div>
         <div className="overflow-y-auto flex-1 pr-2 custom-scrollbar">
-          <table className="w-full text-left text-[12px]">
+          <table className="w-full text-left text-[13px]">
             <thead className="bg-white sticky top-0 z-10">
               <tr>
                 <th className="py-2 font-semibold text-slate-500 border-b border-slate-100">Country</th>
@@ -81,13 +84,13 @@ export function GlobalDashboards({ data, pageQueries }: GlobalDashboardsProps) {
             </thead>
             <tbody>
               {topCountries.length > 0 ? topCountries.map((c, i) => (
-                <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/50">
-                  <td className="py-2 capitalize truncate max-w-[120px] font-medium text-slate-700" title={c.country}>{c.country === 'all' ? 'Unknown' : c.country}</td>
-                  <td className="py-2 text-right tabular-nums text-slate-600">{formatNumber(c.views)}</td>
-                  <td className="py-2 text-right tabular-nums text-slate-600">{formatNumber(c.clicks)}</td>
+                <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                  <td className="py-2.5 capitalize truncate max-w-[120px] font-medium text-slate-700" title={c.country}>{c.country === 'all' ? 'Unknown' : c.country}</td>
+                  <td className="py-2.5 text-right tabular-nums text-slate-600">{formatNumber(c.views)}</td>
+                  <td className="py-2.5 text-right tabular-nums text-slate-600">{formatNumber(c.clicks)}</td>
                 </tr>
               )) : (
-                <tr><td colSpan={3} className="py-4 text-center text-slate-400 text-xs">No Data</td></tr>
+                <tr><td colSpan={3} className="py-6 text-center text-slate-400 text-xs">No Data</td></tr>
               )}
             </tbody>
           </table>
@@ -95,13 +98,15 @@ export function GlobalDashboards({ data, pageQueries }: GlobalDashboardsProps) {
       </div>
 
       {/* Keyword Dashboard */}
-      <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col h-[320px]">
-        <h3 className="text-indigo-900 font-bold text-[14px] mb-3 flex justify-between items-center shrink-0">
-          <span>🔑 Top Keywords</span>
-          <span className="text-[10px] bg-blue-50 text-blue-600 px-2 py-1 rounded font-semibold">GSC</span>
-        </h3>
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 flex flex-col h-[340px]">
+        <div className="flex justify-between items-center mb-4 shrink-0">
+          <h3 className="text-slate-900 font-semibold text-[15px] flex items-center gap-2">
+            <Key size={18} className="text-indigo-600" /> Top Keywords
+          </h3>
+          <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400 bg-slate-100 px-2 py-1 rounded-md">GSC</span>
+        </div>
         <div className="overflow-y-auto flex-1 pr-2 custom-scrollbar">
-          <table className="w-full text-left text-[12px]">
+          <table className="w-full text-left text-[13px]">
             <thead className="bg-white sticky top-0 z-10">
               <tr>
                 <th className="py-2 font-semibold text-slate-500 border-b border-slate-100">Keyword</th>
@@ -111,13 +116,13 @@ export function GlobalDashboards({ data, pageQueries }: GlobalDashboardsProps) {
             </thead>
             <tbody>
               {topKeywords.length > 0 ? topKeywords.map((k, i) => (
-                <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/50">
-                  <td className="py-2 truncate max-w-[140px] font-medium text-slate-700" title={k.query}>{k.query}</td>
-                  <td className="py-2 text-right tabular-nums text-indigo-600 font-semibold">{formatNumber(k.clicks)}</td>
-                  <td className="py-2 text-right tabular-nums text-slate-500">{formatNumber(k.impressions)}</td>
+                <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                  <td className="py-2.5 truncate max-w-[140px] font-medium text-slate-700" title={k.query}>{k.query}</td>
+                  <td className="py-2.5 text-right tabular-nums text-indigo-600 font-semibold">{formatNumber(k.clicks)}</td>
+                  <td className="py-2.5 text-right tabular-nums text-slate-500">{formatNumber(k.impressions)}</td>
                 </tr>
               )) : (
-                <tr><td colSpan={3} className="py-4 text-center text-slate-400 text-xs">No Data</td></tr>
+                <tr><td colSpan={3} className="py-6 text-center text-slate-400 text-xs">No Data</td></tr>
               )}
             </tbody>
           </table>
@@ -125,13 +130,15 @@ export function GlobalDashboards({ data, pageQueries }: GlobalDashboardsProps) {
       </div>
 
       {/* AIO Dashboard */}
-      <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-100 flex flex-col h-[320px]">
-        <h3 className="text-indigo-900 font-bold text-[14px] mb-3 flex justify-between items-center shrink-0">
-          <span>🤖 Top AIO Queries</span>
-          <span className="text-[10px] bg-purple-50 text-purple-600 px-2 py-1 rounded font-semibold">GSC</span>
-        </h3>
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 flex flex-col h-[340px]">
+        <div className="flex justify-between items-center mb-4 shrink-0">
+          <h3 className="text-slate-900 font-semibold text-[15px] flex items-center gap-2">
+            <Bot size={18} className="text-purple-600" /> Top AIO Queries
+          </h3>
+          <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400 bg-slate-100 px-2 py-1 rounded-md">GSC</span>
+        </div>
         <div className="overflow-y-auto flex-1 pr-2 custom-scrollbar">
-          <table className="w-full text-left text-[12px]">
+          <table className="w-full text-left text-[13px]">
             <thead className="bg-white sticky top-0 z-10">
               <tr>
                 <th className="py-2 font-semibold text-slate-500 border-b border-slate-100">AIO Query</th>
@@ -141,13 +148,13 @@ export function GlobalDashboards({ data, pageQueries }: GlobalDashboardsProps) {
             </thead>
             <tbody>
               {topAIO.length > 0 ? topAIO.map((k, i) => (
-                <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/50">
-                  <td className="py-2 truncate max-w-[140px] font-medium text-slate-700" title={k.query}>{k.query}</td>
-                  <td className="py-2 text-right tabular-nums text-purple-600 font-semibold">{formatNumber(k.clicks)}</td>
-                  <td className="py-2 text-right tabular-nums text-slate-500">{formatNumber(k.impressions)}</td>
+                <tr key={i} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                  <td className="py-2.5 truncate max-w-[140px] font-medium text-slate-700" title={k.query}>{k.query}</td>
+                  <td className="py-2.5 text-right tabular-nums text-purple-600 font-semibold">{formatNumber(k.clicks)}</td>
+                  <td className="py-2.5 text-right tabular-nums text-slate-500">{formatNumber(k.impressions)}</td>
                 </tr>
               )) : (
-                <tr><td colSpan={3} className="py-4 text-center text-slate-400 text-xs">No Data</td></tr>
+                <tr><td colSpan={3} className="py-6 text-center text-slate-400 text-xs">No Data</td></tr>
               )}
             </tbody>
           </table>

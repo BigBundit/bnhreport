@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search } from 'lucide-react';
+import { Search, Filter } from 'lucide-react';
 import { FilterState } from '../types';
 
 interface FilterSectionProps {
@@ -11,18 +11,22 @@ interface FilterSectionProps {
 
 export function FilterSection({ filters, setFilters, onApply, availableCountries }: FilterSectionProps) {
   return (
-    <div className="bg-white rounded-xl p-5 shadow-sm mb-5">
-      <div className="flex flex-wrap gap-3 items-end">
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 mb-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Filter size={18} className="text-indigo-600" />
+        <h2 className="text-[15px] text-slate-900 font-semibold">Filters</h2>
+      </div>
+      <div className="flex flex-wrap gap-4 items-end">
         <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] text-slate-500 font-bold uppercase tracking-wide">ประเทศ</label>
+          <label className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">Country</label>
           <select 
-            className="px-3 py-2 border-1.5 border-slate-200 rounded-lg text-[13px] bg-slate-50 outline-none focus:border-indigo-900 min-w-[200px] cursor-pointer"
+            className="px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] text-slate-800 outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 min-w-[200px] cursor-pointer transition-all"
             value={filters.country}
             onChange={e => { setFilters(f => ({ ...f, country: e.target.value })); setTimeout(onApply, 0); }}
           >
-            <option value="all">🌏 ทั้งหมด (All)</option>
-            <option value="intl">🌍 อินเตอร์ (ไม่รวมไทย)</option>
-            <option value="th">🇹🇭 ไทย (Thailand)</option>
+            <option value="all">🌏 All Countries</option>
+            <option value="intl">🌍 International (Exclude TH)</option>
+            <option value="th">🇹🇭 Thailand</option>
             <option disabled>──────────</option>
             {availableCountries.map(c => (
               <option key={c} value={c}>{c}</option>
@@ -31,18 +35,18 @@ export function FilterSection({ filters, setFilters, onApply, availableCountries
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-[11px] text-slate-500 font-bold uppercase tracking-wide">ช่วงวันที่</label>
+          <label className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">Date Range</label>
           <div className="flex gap-2 items-center">
             <input 
               type="date" 
-              className="w-[130px] px-3 py-2 border-1.5 border-slate-200 rounded-lg text-[13px] outline-none focus:border-indigo-900 cursor-pointer"
+              className="w-[140px] px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] text-slate-800 outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 cursor-pointer transition-all"
               value={filters.dateFrom}
               onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
             />
-            <span className="text-slate-400">–</span>
+            <span className="text-slate-400 font-medium">–</span>
             <input 
               type="date" 
-              className="w-[130px] px-3 py-2 border-1.5 border-slate-200 rounded-lg text-[13px] outline-none focus:border-indigo-900 cursor-pointer"
+              className="w-[140px] px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] text-slate-800 outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 cursor-pointer transition-all"
               value={filters.dateTo}
               onChange={e => setFilters(f => ({ ...f, dateTo: e.target.value }))}
             />
@@ -50,8 +54,8 @@ export function FilterSection({ filters, setFilters, onApply, availableCountries
         </div>
 
         <div className="flex flex-col gap-1.5 mt-auto">
-          <button onClick={onApply} className="px-4 py-2 bg-indigo-900 text-white rounded-lg text-[13px] font-semibold hover:bg-indigo-800 transition-all flex items-center gap-2">
-            <Search size={16} /> กรอง
+          <button onClick={onApply} className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-[13px] font-semibold hover:bg-indigo-700 active:bg-indigo-800 transition-all flex items-center gap-2 shadow-sm">
+            <Search size={16} /> Apply Filters
           </button>
         </div>
       </div>

@@ -52,7 +52,7 @@ export function PageListSection({
 
   const handleImportText = () => {
     if (!textInput.trim()) {
-      alert('กรุณาใส่ URL หรือ keyword ก่อน');
+      alert('Please enter URL or keyword first');
       return;
     }
     const parts = textInput.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
@@ -65,7 +65,7 @@ export function PageListSection({
     });
     setPageList(newList);
     setTextInput('');
-    onShowStatus(`✅ เพิ่ม ${added} รายการใน Page List (รวม ${newList.length})`, 'success');
+    onShowStatus(`✅ Added ${added} items to Page List (Total: ${newList.length})`, 'success');
     setActiveTab('manage');
   };
 
@@ -84,7 +84,7 @@ export function PageListSection({
   const parseCSV = (text: string, filename: string) => {
     const lines = text.split(/\r?\n/).filter(l => l.trim());
     if (!lines.length) {
-      onShowStatus('❌ ไฟล์ว่างเปล่า', 'error');
+      onShowStatus('❌ Empty file', 'error');
       return;
     }
     const sep = lines[0].includes('\t') ? '\t' : lines[0].includes(';') ? ';' : ',';
@@ -124,7 +124,7 @@ export function PageListSection({
       if (!isDuplicate(newList, entry)) { newList.push(entry); added++; }
     });
     setPageList(newList);
-    onShowStatus(`✅ นำเข้า ${added} รายการจาก CSV (รวม ${newList.length})`, 'success');
+    onShowStatus(`✅ Imported ${added} items from CSV (Total: ${newList.length})`, 'success');
     setActiveTab('manage');
     setCsvData(null);
   };
@@ -136,7 +136,7 @@ export function PageListSection({
   };
 
   const handleExportList = () => {
-    if (!pageList.length) { alert('ไม่มีรายการใน Page List'); return; }
+    if (!pageList.length) { alert('Page List is empty'); return; }
     const rows = [['Type', 'Path/Keyword', 'Title'], ...pageList.map(p => [p.type, p.path, p.title || ''])];
     const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
@@ -147,121 +147,139 @@ export function PageListSection({
   };
 
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm mb-5">
-      <h2 className="text-[15px] text-indigo-900 mb-4 flex items-center gap-2 font-bold">
-        <List size={18} /> กำหนด Page List ที่ต้องการดู
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 mb-6">
+      <h2 className="text-[15px] text-slate-900 mb-4 flex items-center gap-2 font-semibold">
+        <List size={18} className="text-indigo-600" /> Page List Configuration
         {pageListActive && (
-          <span className="inline-flex items-center gap-1.5 bg-indigo-900 text-white rounded-full px-2.5 py-0.5 text-[11px] font-semibold ml-2">
-            {pageList.length} หน้า
+          <span className="inline-flex items-center gap-1.5 bg-indigo-100 text-indigo-700 rounded-full px-2.5 py-0.5 text-[11px] font-bold ml-2">
+            {pageList.length} Pages Active
             <X size={12} className="cursor-pointer opacity-70 hover:opacity-100" onClick={onClearFilter} />
           </span>
         )}
       </h2>
 
-      <div className="flex gap-0 border-b-2 border-slate-200 mb-4">
-        <button className={`px-4 py-2 text-[13px] font-semibold border-b-2 -mb-[2px] transition-colors ${activeTab === 'text' ? 'text-indigo-900 border-indigo-900' : 'text-slate-500 border-transparent hover:text-indigo-900'}`} onClick={() => setActiveTab('text')}>✏️ พิมพ์/วาง URL</button>
-        <button className={`px-4 py-2 text-[13px] font-semibold border-b-2 -mb-[2px] transition-colors ${activeTab === 'csv' ? 'text-indigo-900 border-indigo-900' : 'text-slate-500 border-transparent hover:text-indigo-900'}`} onClick={() => setActiveTab('csv')}>📂 นำเข้าไฟล์ CSV</button>
-        <button className={`px-4 py-2 text-[13px] font-semibold border-b-2 -mb-[2px] transition-colors ${activeTab === 'manage' ? 'text-indigo-900 border-indigo-900' : 'text-slate-500 border-transparent hover:text-indigo-900'}`} onClick={() => setActiveTab('manage')}>🗂️ จัดการรายการ</button>
+      <div className="flex gap-2 border-b border-slate-200 mb-5">
+        <button className={`px-4 py-2.5 text-[13px] font-semibold border-b-2 -mb-[1px] transition-colors ${activeTab === 'text' ? 'text-indigo-600 border-indigo-600' : 'text-slate-500 border-transparent hover:text-slate-800'}`} onClick={() => setActiveTab('text')}>✏️ Manual Entry</button>
+        <button className={`px-4 py-2.5 text-[13px] font-semibold border-b-2 -mb-[1px] transition-colors ${activeTab === 'csv' ? 'text-indigo-600 border-indigo-600' : 'text-slate-500 border-transparent hover:text-slate-800'}`} onClick={() => setActiveTab('csv')}>📂 Import CSV</button>
+        <button className={`px-4 py-2.5 text-[13px] font-semibold border-b-2 -mb-[1px] transition-colors ${activeTab === 'manage' ? 'text-indigo-600 border-indigo-600' : 'text-slate-500 border-transparent hover:text-slate-800'}`} onClick={() => setActiveTab('manage')}>🗂️ Manage List</button>
       </div>
 
       {activeTab === 'text' && (
-        <div>
-          <div className="mb-2.5">
-            <label className="text-[11px] text-slate-500 font-bold block mb-1 uppercase tracking-wide">วาง URL หรือ Path หลายรายการ (ทีละบรรทัด หรือคั่นด้วย comma)</label>
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="mb-3">
+            <label className="text-[11px] text-slate-500 font-semibold block mb-1.5 uppercase tracking-wider">Enter URLs or Keywords (one per line or comma-separated)</label>
             <textarea 
-              className="w-full px-3 py-2 border-1.5 border-slate-200 rounded-lg text-[13px] outline-none focus:border-indigo-900 transition-colors font-mono"
-              rows={5}
-              placeholder="/th/article/pms-symptoms-before-period&#10;/th/health-acticle/preterm-birth/&#10;https://www.bnhhospital.com/th/article/what-is-hpv-symptoms-treatment-prevention&#10;HPV, Lady Ready, มะเร็ง"
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-[13px] text-slate-800 outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-mono resize-y"
+              rows={4}
+              placeholder="/th/article/pms-symptoms-before-period&#10;/th/health-acticle/preterm-birth/&#10;https://www.bnhhospital.com/th/article/what-is-hpv-symptoms-treatment-prevention&#10;HPV, Lady Ready, Cancer"
               value={textInput}
               onChange={e => setTextInput(e.target.value)}
             />
-            <div className="text-[10px] text-slate-400 mt-1">รองรับ: full URL, path (/th/...), หรือ keyword ค้นหา — คั่นด้วย Enter หรือ comma</div>
+            <div className="text-[11px] text-slate-400 mt-1.5">Supports: full URL, path (/th/...), or search keyword</div>
           </div>
           <div className="flex gap-2">
-            <button onClick={handleImportText} className="px-3 py-1.5 bg-indigo-900 text-white rounded-lg text-xs font-semibold hover:bg-indigo-800 transition-all flex items-center gap-1.5">
-              <Plus size={14} /> เพิ่มใน List
+            <button onClick={handleImportText} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[13px] font-semibold hover:bg-indigo-700 active:bg-indigo-800 transition-all flex items-center gap-2 shadow-sm">
+              <Plus size={16} /> Add to List
             </button>
-            <button onClick={() => setTextInput('')} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-all flex items-center gap-1.5">
-              <Trash2 size={14} /> ล้าง
+            <button onClick={() => setTextInput('')} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-[13px] font-semibold hover:bg-slate-200 transition-all flex items-center gap-2">
+              <Trash2 size={16} /> Clear
             </button>
           </div>
         </div>
       )}
 
       {activeTab === 'csv' && (
-        <div>
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
           <div 
-            className="border-2 border-dashed border-indigo-200 rounded-xl p-6 text-center cursor-pointer transition-colors bg-white hover:border-indigo-900 hover:bg-indigo-50"
+            className="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center cursor-pointer transition-all bg-slate-50 hover:border-indigo-400 hover:bg-indigo-50/50 group"
             onClick={() => fileInputRef.current?.click()}
           >
-            <UploadCloud size={32} className="mx-auto mb-2 text-indigo-400" />
-            <p className="text-[13px] text-slate-600 mb-1"><strong>คลิกเพื่อเลือกไฟล์</strong></p>
-            <p className="text-[11px] text-slate-400">รองรับ .csv และ .txt | UTF-8 หรือ UTF-8 BOM</p>
+            <div className="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
+              <UploadCloud size={24} className="text-indigo-500" />
+            </div>
+            <p className="text-[14px] text-slate-700 mb-1 font-medium">Click to select CSV file</p>
+            <p className="text-[12px] text-slate-400">Supports .csv and .txt | UTF-8 encoding</p>
           </div>
           <input type="file" ref={fileInputRef} accept=".csv,.txt" className="hidden" onChange={handleFileChange} />
           
           {csvData && (
-            <div className="mt-3">
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <label className="text-xs text-slate-600 font-semibold">คอลัมน์ URL/Path:</label>
-                <select className="px-3 py-1.5 border-1.5 border-slate-200 rounded-lg text-xs bg-slate-50 outline-none focus:border-indigo-900 min-w-[160px]" value={csvColIdx} onChange={e => setCsvColIdx(+e.target.value)}>
-                  {csvData.headers.map((h, i) => <option key={i} value={i}>{h}</option>)}
-                </select>
-                <label className="text-xs text-slate-600 font-semibold">คอลัมน์ Title (ถ้ามี):</label>
-                <select className="px-3 py-1.5 border-1.5 border-slate-200 rounded-lg text-xs bg-slate-50 outline-none focus:border-indigo-900 min-w-[160px]" value={csvTitleIdx} onChange={e => setCsvTitleIdx(+e.target.value)}>
-                  <option value="-1">— ไม่มี Title —</option>
-                  {csvData.headers.map((h, i) => <option key={i} value={i}>{h}</option>)}
-                </select>
-                <button onClick={handleImportCSV} className="px-3 py-1.5 bg-indigo-900 text-white rounded-lg text-xs font-semibold hover:bg-indigo-800 transition-all flex items-center gap-1.5">
-                  <Plus size={14} /> นำเข้า
-                </button>
+            <div className="mt-5 bg-slate-50 rounded-xl p-4 border border-slate-200">
+              <div className="flex items-center gap-3 flex-wrap mb-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-slate-500 font-semibold uppercase">URL/Path Column</label>
+                  <select className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-[13px] outline-none focus:border-indigo-500 min-w-[160px]" value={csvColIdx} onChange={e => setCsvColIdx(+e.target.value)}>
+                    {csvData.headers.map((h, i) => <option key={i} value={i}>{h}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] text-slate-500 font-semibold uppercase">Title Column (Optional)</label>
+                  <select className="px-3 py-2 bg-white border border-slate-200 rounded-lg text-[13px] outline-none focus:border-indigo-500 min-w-[160px]" value={csvTitleIdx} onChange={e => setCsvTitleIdx(+e.target.value)}>
+                    <option value="-1">— No Title —</option>
+                    {csvData.headers.map((h, i) => <option key={i} value={i}>{h}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1 mt-auto">
+                  <button onClick={handleImportCSV} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-[13px] font-semibold hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-sm">
+                    <Plus size={16} /> Import Data
+                  </button>
+                </div>
               </div>
-              <div className="bg-slate-50 border border-slate-100 rounded-lg p-2.5 text-[11px] font-mono text-slate-500 max-h-[120px] overflow-y-auto mt-2.5 whitespace-pre-wrap break-all">
-                ไฟล์: {csvFileName}{'\n'}
+              <div className="bg-white border border-slate-200 rounded-lg p-3 text-[12px] font-mono text-slate-600 max-h-[120px] overflow-y-auto whitespace-pre-wrap break-all custom-scrollbar">
+                <div className="text-slate-400 mb-1 text-[10px] uppercase font-sans tracking-wider">Preview: {csvFileName}</div>
                 {csvData.headers.join(csvData.headers.length > 1 ? ',' : '')}{'\n'}
                 {csvData.rows.slice(0, 3).map(r => r.join(',')).join('\n')}
-                {csvData.rows.length > 3 && `\n...(${csvData.rows.length - 3} แถว)`}
+                {csvData.rows.length > 3 && `\n...(${csvData.rows.length - 3} more rows)`}
               </div>
-              <div className="text-xs text-slate-600 mt-2">✅ พบ {csvData.rows.length} แถว, {csvData.headers.length} คอลัมน์</div>
+              <div className="text-[12px] text-emerald-600 font-medium mt-2 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Found {csvData.rows.length} rows, {csvData.headers.length} columns
+              </div>
             </div>
           )}
         </div>
       )}
 
       {activeTab === 'manage' && (
-        <div>
-          <div className="flex flex-wrap gap-1.5 min-h-[30px] max-h-[150px] overflow-y-auto py-1">
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="flex flex-wrap gap-2 min-h-[40px] max-h-[200px] overflow-y-auto py-2 custom-scrollbar pr-2">
             {pageList.length === 0 ? (
-              <span className="text-xs text-slate-400">ยังไม่มีรายการ — เพิ่มจากแท็บ "พิมพ์/วาง URL" หรือ "นำเข้าไฟล์ CSV"</span>
+              <div className="w-full py-8 text-center text-slate-400 text-[13px] bg-slate-50 rounded-xl border border-slate-100 border-dashed">
+                No items in list. Add them via "Manual Entry" or "Import CSV".
+              </div>
             ) : (
               pageList.map((p, i) => {
                 const label = p.title || (p.type === 'keyword' ? `🔑 ${p.path}` : p.path);
                 const isUrl = p.type === 'url';
                 return (
-                  <span key={i} className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold border ${isUrl ? 'bg-green-50 text-green-800 border-green-200' : 'bg-indigo-50 text-indigo-900 border-indigo-200'}`} title={p.path}>
-                    {isUrl ? <LinkIcon size={12} /> : <Search size={12} />}
-                    <span className="max-w-[200px] truncate">{label}</span>
-                    <X size={14} className={`cursor-pointer ${isUrl ? 'text-green-500 hover:text-red-600' : 'text-indigo-400 hover:text-red-600'}`} onClick={() => handleRemoveEntry(i)} />
+                  <span key={i} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-medium border shadow-sm transition-colors ${isUrl ? 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100' : 'bg-indigo-50 text-indigo-800 border-indigo-200 hover:bg-indigo-100'}`} title={p.path}>
+                    {isUrl ? <LinkIcon size={14} className="opacity-70" /> : <Search size={14} className="opacity-70" />}
+                    <span className="max-w-[250px] truncate">{label}</span>
+                    <button onClick={() => handleRemoveEntry(i)} className={`ml-1 p-0.5 rounded-full hover:bg-white/50 transition-colors ${isUrl ? 'text-emerald-600 hover:text-emerald-900' : 'text-indigo-600 hover:text-indigo-900'}`}>
+                      <X size={14} />
+                    </button>
                   </span>
                 );
               })
             )}
           </div>
-          <div className="text-xs text-slate-600 mt-2 mb-3">
-            รวม: <strong className="text-indigo-900">{pageList.length}</strong> รายการ
-          </div>
-          <hr className="border-t border-slate-100 my-3" />
-          <div className="flex gap-2 flex-wrap">
-            <button onClick={onApplyFilter} className="px-3 py-1.5 bg-indigo-900 text-white rounded-lg text-xs font-semibold hover:bg-indigo-800 transition-all flex items-center gap-1.5">
-              <Search size={14} /> กรองข้อมูลตาม List นี้
-            </button>
-            <button onClick={() => { setPageList([]); onClearFilter(); }} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-all flex items-center gap-1.5">
-              <Trash2 size={14} /> ล้าง List ทั้งหมด
-            </button>
-            <button onClick={handleExportList} className="px-3 py-1.5 bg-green-800 text-white rounded-lg text-xs font-semibold hover:bg-green-700 transition-all flex items-center gap-1.5">
-              <FileSpreadsheet size={14} /> Export List เป็น CSV
-            </button>
-          </div>
+          
+          {pageList.length > 0 && (
+            <>
+              <div className="text-[13px] text-slate-500 mt-3 mb-4 font-medium">
+                Total: <strong className="text-slate-900">{pageList.length}</strong> items
+              </div>
+              <div className="flex gap-2 flex-wrap pt-4 border-t border-slate-100">
+                <button onClick={onApplyFilter} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[13px] font-semibold hover:bg-indigo-700 active:bg-indigo-800 transition-all flex items-center gap-2 shadow-sm">
+                  <Search size={16} /> Filter by List
+                </button>
+                <button onClick={() => { setPageList([]); onClearFilter(); }} className="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-[13px] font-semibold hover:bg-slate-200 transition-all flex items-center gap-2">
+                  <Trash2 size={16} /> Clear List
+                </button>
+                <button onClick={handleExportList} className="px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-[13px] font-semibold hover:bg-emerald-100 transition-all flex items-center gap-2 ml-auto">
+                  <FileSpreadsheet size={16} /> Export CSV
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

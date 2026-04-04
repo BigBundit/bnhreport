@@ -86,7 +86,7 @@ export function PageDetailModal({ path, isKeyword, pageListActive, data, pageQue
     if (!pageQueries) return { keywords: [], aioQueries: [] };
     
     let kwList: PageQuery[] = [];
-    if (isKeyword) {
+    if (isKeyword || pageListActive) {
       const kwMap = new Map<string, PageQuery>();
       rows.forEach(r => {
         const kws = pageQueries[r.page] || [];
