@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { ExternalLink, Eye } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { DataRow, PageQuery } from '../types';
 import { formatNumber, formatPercent, formatTime, formatPosition, getTitle, isAIOQuery } from '../utils';
@@ -43,10 +44,11 @@ interface PageDetailModalProps {
   pageListActive: boolean;
   data: DataRow[];
   pageQueries?: Record<string, PageQuery[]>;
+  siteUrl: string;
   onClose: () => void;
 }
 
-export function PageDetailModal({ path, isKeyword, pageListActive, data, pageQueries, onClose }: PageDetailModalProps) {
+export function PageDetailModal({ path, isKeyword, pageListActive, data, pageQueries, siteUrl, onClose }: PageDetailModalProps) {
   const rows = useMemo(() => {
     return data.filter(r => {
       if (isKeyword) {
@@ -121,7 +123,20 @@ export function PageDetailModal({ path, isKeyword, pageListActive, data, pageQue
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl p-6 max-w-[1400px] w-[95vw] max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4 shrink-0">
-          <h2 className="text-indigo-900 text-[14px] font-bold">📄 {title}</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-indigo-900 text-[14px] font-bold">📄 {title}</h2>
+            {!isKeyword && (
+              <a 
+                href={`${siteUrl.replace(/\/$/, '')}${path.startsWith('/') ? path : '/' + path}`} 
+                target="_blank" 
+                rel="noreferrer"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-semibold hover:bg-indigo-100 transition-all"
+                title="เปิดหน้าเว็บนี้"
+              >
+                <Eye size={14} /> ดูหน้าเว็บจริง
+              </a>
+            )}
+          </div>
           <button onClick={onClose} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-all">✕ ปิด</button>
         </div>
         

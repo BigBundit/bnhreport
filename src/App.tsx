@@ -35,6 +35,7 @@ export default function App() {
   const [modals, setModals] = useState({ tokenHelp: false, pageDetail: null as string | null });
   const [isLoading, setIsLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('');
+  const [loadingProgress, setLoadingProgress] = useState(0);
 
   const availableCountries = useMemo(() => {
     const set = new Set<string>();
@@ -195,6 +196,7 @@ export default function App() {
       return;
     }
     setIsLoading(true);
+    setLoadingProgress(10);
     setLoadingMsg('กำลังโหลดข้อมูล GA4...');
     showStatus('⏳ กำลังโหลดข้อมูล GA4...', 'info');
     try {
@@ -226,6 +228,7 @@ export default function App() {
         };
       });
 
+      setLoadingProgress(40);
       setLoadingMsg(`กำลังโหลด Search Console... (GA4: ${gaRows.length.toLocaleString()} rows)`);
       showStatus(`⏳ กำลังโหลด Search Console... (GA4: ${gaRows.length.toLocaleString()} rows)`, 'info');
 
@@ -272,6 +275,7 @@ export default function App() {
       const merged = Array.from(map.values());
       setAllData(merged);
 
+      setLoadingProgress(70);
       setLoadingMsg(`กำลังโหลด Keywords จาก Search Console...`);
       showStatus(`⏳ กำลังโหลด Keywords จาก Search Console...`, 'info');
       const gscKwRes = await fetch(`https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`, {
@@ -293,12 +297,19 @@ export default function App() {
       });
       setPageQueries(kwMap);
 
+      setLoadingProgress(100);
       showStatus(`✅ โหลดสำเร็จ ${merged.length.toLocaleString()} รายการ (GA4+GSC)`, 'success');
+      
+      // Small delay to show 100% before hiding
+      setTimeout(() => {
+        setIsLoading(false);
+        setLoadingProgress(0);
+      }, 500);
     } catch (e: any) {
       showStatus(`❌ ${e.message}`, 'error');
       console.error(e);
-    } finally {
       setIsLoading(false);
+      setLoadingProgress(0);
     }
   };
 
@@ -342,6 +353,7 @@ export default function App() {
             showStatus('🗑️ ล้าง Page List แล้ว', 'warn');
           }}
           onShowStatus={showStatus}
+          onShowPage={(path) => setModals(m => ({ ...m, pageDetail: path }))}
         />
 
         <FilterSection filters={filters} setFilters={setFilters} onApply={applyFilters} availableCountries={availableCountries} />
@@ -364,13 +376,20 @@ export default function App() {
       </div>
 
       {modals.tokenHelp && <TokenModal onClose={() => setModals(m => ({ ...m, tokenHelp: false }))} />}
-      {modals.pageDetail && <PageDetailModal path={modals.pageDetail} isKeyword={modals.pageDetail.startsWith('[Keyword]')} pageListActive={pageListActive} data={allData} pageQueries={pageQueries} onClose={() => setModals(m => ({ ...m, pageDetail: null }))} />}
+      {modals.pageDetail && <PageDetailModal path={modals.pageDetail} isKeyword={modals.pageDetail.startsWith('[Keyword]')} pageListActive={pageListActive} data={allData} pageQueries={pageQueries} siteUrl={siteUrl} onClose={() => setModals(m => ({ ...m, pageDetail: null }))} />}
       
       {isLoading && (
         <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center">
-          <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-          <div className="text-lg font-bold text-indigo-900 mb-2">กำลังนำเข้าข้อมูล...</div>
-          <div className="text-sm font-medium text-slate-600">{loadingMsg}</div>
+          <div className="bg-white p-8 rounded-2xl shadow-xl flex flex-col items-center max-w-sm w-full mx-4 border border-slate-100">
+            <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+            <div className="text-lg font-bold text-indigo-900 mb-1">กำลังนำเข้าข้อมูล...</div>
+            <div className="text-sm font-medium text-slate-500 mb-6 text-center h-5">{loadingMsg}</div>
+            
+            <div className="w-full bg-slate-100 rounded-full h-2.5 mb-2 overflow-hidden">
+              <div className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500 ease-out" style={{ width: `${loadingProgress}%` }}></div>
+            </div>
+            <div className="text-xs font-bold text-slate-400 text-right w-full">{loadingProgress}%</div>
+          </div>
         </div>
       )}
     </div>
