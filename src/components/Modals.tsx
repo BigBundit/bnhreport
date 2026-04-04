@@ -9,8 +9,8 @@ interface TokenModalProps {
 
 export function TokenModal({ onClose }: TokenModalProps) {
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl p-6 max-w-[640px] w-full max-h-[88vh] overflow-y-auto shadow-2xl">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-6 max-w-[640px] w-full max-h-[88vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-indigo-900 text-base font-bold">🔐 วิธีรับ OAuth Access Token</h2>
           <button onClick={onClose} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-all">✕</button>
@@ -118,8 +118,8 @@ export function PageDetailModal({ path, isKeyword, pageListActive, data, pageQue
   }, [pageQueries, path, isKeyword, rows]);
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl p-6 max-w-[980px] w-full max-h-[88vh] overflow-y-auto shadow-2xl flex flex-col">
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-6 max-w-[1400px] w-[95vw] max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4 shrink-0">
           <h2 className="text-indigo-900 text-[14px] font-bold">📄 {title}</h2>
           <button onClick={onClose} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-all">✕ ปิด</button>
@@ -140,21 +140,21 @@ export function PageDetailModal({ path, isKeyword, pageListActive, data, pageQue
           </ResponsiveContainer>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-0">
-          <div className="lg:col-span-2 overflow-y-auto border border-slate-100 rounded-lg">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 min-h-0">
+          <div className="lg:col-span-2 overflow-y-auto border border-slate-100 rounded-lg custom-scrollbar">
             <table className="w-full text-left border-collapse text-xs">
-              <thead className="bg-indigo-900 text-white sticky top-0">
+              <thead className="bg-indigo-900 text-white sticky top-0 z-10">
                 <tr>
-                  <th className="p-2 font-bold text-[10px] uppercase tracking-wide">วันที่</th>
-                  <th className="p-2 font-bold text-[10px] uppercase tracking-wide text-right">Users (GA4)</th>
-                  <th className="p-2 font-bold text-[10px] uppercase tracking-wide text-right">Sessions (GA4)</th>
-                  <th className="p-2 font-bold text-[10px] uppercase tracking-wide text-right">Views (GA4)</th>
-                  <th className="p-2 font-bold text-[10px] uppercase tracking-wide text-right">Eng.Time (GA4)</th>
-                  <th className="p-2 font-bold text-[10px] uppercase tracking-wide text-right">Eng.Rate (GA4)</th>
-                  <th className="p-2 font-bold text-[10px] uppercase tracking-wide text-right">Impressions (GSC)</th>
-                  <th className="p-2 font-bold text-[10px] uppercase tracking-wide text-right">Clicks (GSC)</th>
-                  <th className="p-2 font-bold text-[10px] uppercase tracking-wide text-right">CTR (GSC)</th>
-                  <th className="p-2 font-bold text-[10px] uppercase tracking-wide text-right">Avg Pos. (GSC)</th>
+                  <th className="p-2 font-bold text-[10px] uppercase tracking-wide whitespace-nowrap">วันที่</th>
+                  <th className="p-2 font-bold text-[10px] uppercase tracking-wide text-right whitespace-nowrap">Users (GA4)</th>
+                  <th className="p-2 font-bold text-[10px] uppercase tracking-wide text-right whitespace-nowrap">Sessions (GA4)</th>
+                  <th className="p-2 font-bold text-[10px] uppercase tracking-wide text-right whitespace-nowrap">Views (GA4)</th>
+                  <th className="p-2 font-bold text-[10px] uppercase tracking-wide text-right whitespace-nowrap">Eng.Time (GA4)</th>
+                  <th className="p-2 font-bold text-[10px] uppercase tracking-wide text-right whitespace-nowrap">Eng.Rate (GA4)</th>
+                  <th className="p-2 font-bold text-[10px] uppercase tracking-wide text-right whitespace-nowrap">Impressions (GSC)</th>
+                  <th className="p-2 font-bold text-[10px] uppercase tracking-wide text-right whitespace-nowrap">Clicks (GSC)</th>
+                  <th className="p-2 font-bold text-[10px] uppercase tracking-wide text-right whitespace-nowrap">CTR (GSC)</th>
+                  <th className="p-2 font-bold text-[10px] uppercase tracking-wide text-right whitespace-nowrap">Avg Pos. (GSC)</th>
                 </tr>
               </thead>
               <tbody>
@@ -176,64 +176,62 @@ export function PageDetailModal({ path, isKeyword, pageListActive, data, pageQue
             </table>
           </div>
 
-          <div className="flex flex-col gap-4">
-            <div className="overflow-y-auto border border-slate-100 rounded-lg bg-slate-50 flex-1 min-h-[150px]">
-              <div className="bg-indigo-900 text-white p-2 font-bold text-[10px] uppercase tracking-wide sticky top-0 flex justify-between">
-                <span>Top Keywords</span>
-                <span className="bg-blue-50 text-blue-600 px-1.5 rounded">GSC</span>
-              </div>
-              {keywords.length > 0 ? (
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead className="bg-slate-100 text-slate-600 sticky top-[32px]">
-                    <tr>
-                      <th className="p-2 font-semibold text-[10px]">Keyword</th>
-                      <th className="p-2 font-semibold text-[10px] text-right">Clicks</th>
-                      <th className="p-2 font-semibold text-[10px] text-right">Imp.</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {keywords.map((kw, i) => (
-                      <tr key={i} className="border-b border-slate-200 hover:bg-white">
-                        <td className="p-1.5 truncate max-w-[120px]" title={kw.query}>{kw.query}</td>
-                        <td className="p-1.5 text-right tabular-nums font-medium text-indigo-700">{formatNumber(kw.clicks)}</td>
-                        <td className="p-1.5 text-right tabular-nums text-slate-500">{formatNumber(kw.impressions)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="p-4 text-center text-slate-400 text-xs">No Data</div>
-              )}
+          <div className="lg:col-span-1 overflow-y-auto border border-slate-100 rounded-lg bg-slate-50 flex flex-col min-h-[200px] custom-scrollbar">
+            <div className="bg-indigo-900 text-white p-2 font-bold text-[10px] uppercase tracking-wide sticky top-0 flex justify-between z-10">
+              <span>Top Keywords</span>
+              <span className="bg-blue-50 text-blue-600 px-1.5 rounded">GSC</span>
             </div>
+            {keywords.length > 0 ? (
+              <table className="w-full text-left border-collapse text-xs">
+                <thead className="bg-slate-100 text-slate-600 sticky top-[32px] z-10">
+                  <tr>
+                    <th className="p-2 font-semibold text-[10px]">Keyword</th>
+                    <th className="p-2 font-semibold text-[10px] text-right">Clicks</th>
+                    <th className="p-2 font-semibold text-[10px] text-right">Imp.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {keywords.map((kw, i) => (
+                    <tr key={i} className="border-b border-slate-200 hover:bg-white">
+                      <td className="p-1.5 truncate max-w-[140px]" title={kw.query}>{kw.query}</td>
+                      <td className="p-1.5 text-right tabular-nums font-medium text-indigo-700">{formatNumber(kw.clicks)}</td>
+                      <td className="p-1.5 text-right tabular-nums text-slate-500">{formatNumber(kw.impressions)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="p-4 text-center text-slate-400 text-xs">No Data</div>
+            )}
+          </div>
 
-            <div className="overflow-y-auto border border-slate-100 rounded-lg bg-slate-50 flex-1 min-h-[150px]">
-              <div className="bg-indigo-900 text-white p-2 font-bold text-[10px] uppercase tracking-wide sticky top-0 flex justify-between">
-                <span>Top AIO Queries</span>
-                <span className="bg-purple-50 text-purple-600 px-1.5 rounded">GSC</span>
-              </div>
-              {aioQueries.length > 0 ? (
-                <table className="w-full text-left border-collapse text-xs">
-                  <thead className="bg-slate-100 text-slate-600 sticky top-[32px]">
-                    <tr>
-                      <th className="p-2 font-semibold text-[10px]">AIO Query</th>
-                      <th className="p-2 font-semibold text-[10px] text-right">Clicks</th>
-                      <th className="p-2 font-semibold text-[10px] text-right">Imp.</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {aioQueries.map((kw, i) => (
-                      <tr key={i} className="border-b border-slate-200 hover:bg-white">
-                        <td className="p-1.5 truncate max-w-[120px]" title={kw.query}>{kw.query}</td>
-                        <td className="p-1.5 text-right tabular-nums font-medium text-purple-700">{formatNumber(kw.clicks)}</td>
-                        <td className="p-1.5 text-right tabular-nums text-slate-500">{formatNumber(kw.impressions)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <div className="p-4 text-center text-slate-400 text-xs">No Data</div>
-              )}
+          <div className="lg:col-span-1 overflow-y-auto border border-slate-100 rounded-lg bg-slate-50 flex flex-col min-h-[200px] custom-scrollbar">
+            <div className="bg-indigo-900 text-white p-2 font-bold text-[10px] uppercase tracking-wide sticky top-0 flex justify-between z-10">
+              <span>Top AIO Queries</span>
+              <span className="bg-purple-50 text-purple-600 px-1.5 rounded">GSC</span>
             </div>
+            {aioQueries.length > 0 ? (
+              <table className="w-full text-left border-collapse text-xs">
+                <thead className="bg-slate-100 text-slate-600 sticky top-[32px] z-10">
+                  <tr>
+                    <th className="p-2 font-semibold text-[10px]">AIO Query</th>
+                    <th className="p-2 font-semibold text-[10px] text-right">Clicks</th>
+                    <th className="p-2 font-semibold text-[10px] text-right">Imp.</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {aioQueries.map((kw, i) => (
+                    <tr key={i} className="border-b border-slate-200 hover:bg-white">
+                      <td className="p-1.5 truncate max-w-[140px]" title={kw.query}>{kw.query}</td>
+                      <td className="p-1.5 text-right tabular-nums font-medium text-purple-700">{formatNumber(kw.clicks)}</td>
+                      <td className="p-1.5 text-right tabular-nums text-slate-500">{formatNumber(kw.impressions)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="p-4 text-center text-slate-400 text-xs">No Data</div>
+            )}
           </div>
         </div>
       </div>

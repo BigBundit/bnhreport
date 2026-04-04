@@ -2,14 +2,15 @@ import React, { useMemo } from 'react';
 import { DataRow, PageQuery } from '../types';
 import { formatNumber, formatPercent } from '../utils';
 import { isAIOQuery } from '../utils';
-import { Globe, Key, Bot, Users, Plane, MapPin } from 'lucide-react';
+import { Globe, Key, Bot, Users, Plane, MapPin, TrendingUp, TrendingDown } from 'lucide-react';
 
 interface GlobalDashboardsProps {
   data: DataRow[];
+  prevData?: DataRow[];
   pageQueries: Record<string, PageQuery[]>;
 }
 
-export function GlobalDashboards({ data, pageQueries }: GlobalDashboardsProps) {
+export function GlobalDashboards({ data, prevData = [], pageQueries }: GlobalDashboardsProps) {
   // 1. Audience Stats (Thai vs Inter)
   const audienceStats = useMemo(() => {
     let totalViews = 0;
@@ -29,6 +30,37 @@ export function GlobalDashboards({ data, pageQueries }: GlobalDashboardsProps) {
 
     return { totalViews, thaiViews, interViews, interPercent, thaiPercent };
   }, [data]);
+
+  const prevAudienceStats = useMemo(() => {
+    let totalViews = 0;
+    let thaiViews = 0;
+    
+    prevData.forEach(r => {
+      totalViews += r.views;
+      const c = r.country.toLowerCase();
+      if (c === 'th' || c === 'thailand' || c === 'ไทย') {
+        thaiViews += r.views;
+      }
+    });
+
+    const interViews = totalViews - thaiViews;
+    return { totalViews, thaiViews, interViews };
+  }, [prevData]);
+
+  const getTrend = (current: number, previous: number) => {
+    if (previous === 0 && current === 0) return { val: 0, text: '0%', isPos: true };
+    if (previous === 0) return { val: 100, text: '+100%', isPos: true };
+    const pct = ((current - previous) / previous) * 100;
+    return {
+      val: pct,
+      text: `${pct > 0 ? '+' : ''}${pct.toFixed(1)}%`,
+      isPos: pct >= 0
+    };
+  };
+
+  const trendTotal = getTrend(audienceStats.totalViews, prevAudienceStats.totalViews);
+  const trendThai = getTrend(audienceStats.thaiViews, prevAudienceStats.thaiViews);
+  const trendInter = getTrend(audienceStats.interViews, prevAudienceStats.interViews);
 
   // 2. Top Countries
   const topCountries = useMemo(() => {
@@ -95,9 +127,17 @@ export function GlobalDashboards({ data, pageQueries }: GlobalDashboardsProps) {
           <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
             <Users size={24} className="text-blue-600" />
           </div>
-          <div>
+          <div className="flex-1">
             <div className="text-[12px] text-slate-500 font-semibold uppercase tracking-wider mb-1">Total Views (All)</div>
-            <div className="text-2xl font-bold text-slate-900">{formatNumber(audienceStats.totalViews)}</div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl font-bold text-slate-900">{formatNumber(audienceStats.totalViews)}</span>
+              {prevData.length > 0 && (
+                <span className={`flex items-center text-[11px] font-semibold ${trendTotal.isPos ? 'text-emerald-600' : 'text-red-500'}`}>
+                  {trendTotal.isPos ? <TrendingUp size={12} className="mr-0.5" /> : <TrendingDown size={12} className="mr-0.5" />}
+                  {trendTotal.text}
+                </span>
+              )}
+            </div>
           </div>
         </div>
         
@@ -110,6 +150,12 @@ export function GlobalDashboards({ data, pageQueries }: GlobalDashboardsProps) {
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-bold text-slate-900">{formatPercent(audienceStats.thaiPercent)}</span>
               <span className="text-[13px] text-slate-500">({formatNumber(audienceStats.thaiViews)} views)</span>
+              {prevData.length > 0 && (
+                <span className={`flex items-center text-[11px] font-semibold ml-1 ${trendThai.isPos ? 'text-emerald-600' : 'text-red-500'}`}>
+                  {trendThai.isPos ? <TrendingUp size={12} className="mr-0.5" /> : <TrendingDown size={12} className="mr-0.5" />}
+                  {trendThai.text}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -123,6 +169,12 @@ export function GlobalDashboards({ data, pageQueries }: GlobalDashboardsProps) {
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-bold text-indigo-700">{formatPercent(audienceStats.interPercent)}</span>
               <span className="text-[13px] text-slate-500">({formatNumber(audienceStats.interViews)} views)</span>
+              {prevData.length > 0 && (
+                <span className={`flex items-center text-[11px] font-semibold ml-1 ${trendInter.isPos ? 'text-emerald-600' : 'text-red-500'}`}>
+                  {trendInter.isPos ? <TrendingUp size={12} className="mr-0.5" /> : <TrendingDown size={12} className="mr-0.5" />}
+                  {trendInter.text}
+                </span>
+              )}
             </div>
           </div>
         </div>

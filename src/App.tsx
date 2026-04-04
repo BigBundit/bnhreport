@@ -15,6 +15,7 @@ export default function App() {
   const [allData, setAllData] = useState<DataRow[]>([]);
   const [pageQueries, setPageQueries] = useState<Record<string, PageQuery[]>>({});
   const [filteredData, setFilteredData] = useState<DataRow[]>([]);
+  const [prevFilteredData, setPrevFilteredData] = useState<DataRow[]>([]);
   const [tableData, setTableData] = useState<DataRow[]>([]);
   
   const [propId, setPropId] = useState('283309066');
@@ -32,6 +33,8 @@ export default function App() {
   
   const [status, setStatus] = useState<StatusState>({ msg: '', type: 'info', visible: false });
   const [modals, setModals] = useState({ tokenHelp: false, pageDetail: null as string | null });
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState('');
 
   const availableCountries = useMemo(() => {
     const set = new Set<string>();
@@ -47,7 +50,6 @@ export default function App() {
     const s = new Date(today);
     s.setMonth(s.getMonth() - 1);
     const from = s.toISOString().split('T')[0];
-    const m = today.toISOString().slice(0, 7);
     setFilters(f => ({ ...f, dateFrom: from, dateTo: to }));
   }, []);
 
@@ -71,23 +73,44 @@ export default function App() {
   const applyFilters = useCallback(() => {
     const { country, dateFrom, dateTo } = filters;
     
-    // 1. Filter by time and country
-    const timeFiltered = allData.filter(r => {
-      if (dateFrom && r.date < dateFrom) return false;
-      if (dateTo && r.date > dateTo) return false;
+    let prevDateFromStr = '';
+    let prevDateToStr = '';
+    if (dateFrom && dateTo) {
+      const dFrom = new Date(dateFrom);
+      const dTo = new Date(dateTo);
+      const diffTime = Math.abs(dTo.getTime() - dFrom.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       
+      const pTo = new Date(dFrom);
+      pTo.setDate(pTo.getDate() - 1);
+      
+      const pFrom = new Date(pTo);
+      pFrom.setDate(pFrom.getDate() - diffDays);
+      
+      prevDateFromStr = pFrom.toISOString().split('T')[0];
+      prevDateToStr = pTo.toISOString().split('T')[0];
+    }
+
+    const filterLogic = (r: DataRow, from: string, to: string) => {
+      if (from && r.date < from) return false;
+      if (to && r.date > to) return false;
       if (country === 'all') return true;
-      
       const isTh = r.country === 'Thailand' || r.country === 'TH' || r.country === 'th';
       if (country === 'intl') return !isTh;
       if (country === 'th') return isTh;
-      
       return r.country === country;
-    });
+    };
+
+    // 1. Filter by time and country
+    const timeFiltered = allData.filter(r => filterLogic(r, dateFrom, dateTo));
+    const prevTimeFiltered = allData.filter(r => filterLogic(r, prevDateFromStr, prevDateToStr));
 
     // 2. Filter by page list for charts and summary
     const pageFiltered = timeFiltered.filter(r => matchPageList(r.page));
+    const prevPageFiltered = prevTimeFiltered.filter(r => matchPageList(r.page));
+    
     setFilteredData(pageFiltered);
+    setPrevFilteredData(prevPageFiltered);
 
     // 3. Aggregate for table
     const agg = new Map<string, DataRow & { _ec: number; _pc: number; _erc: number }>();
@@ -171,11 +194,13 @@ export default function App() {
       showStatus('⚠️ กรุณากรอก Access Token', 'warn');
       return;
     }
+    setIsLoading(true);
+    setLoadingMsg('กำลังโหลดข้อมูล GA4...');
     showStatus('⏳ กำลังโหลดข้อมูล GA4...', 'info');
     try {
       const today = new Date();
       const start = new Date(today);
-      start.setMonth(start.getMonth() - 3);
+      start.setMonth(start.getMonth() - 6);
       const sDate = start.toISOString().split('T')[0];
       const eDate = today.toISOString().split('T')[0];
 
@@ -201,6 +226,7 @@ export default function App() {
         };
       });
 
+      setLoadingMsg(`กำลังโหลด Search Console... (GA4: ${gaRows.length.toLocaleString()} rows)`);
       showStatus(`⏳ กำลังโหลด Search Console... (GA4: ${gaRows.length.toLocaleString()} rows)`, 'info');
 
       const gscRes = await fetch(`https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`, {
@@ -246,6 +272,7 @@ export default function App() {
       const merged = Array.from(map.values());
       setAllData(merged);
 
+      setLoadingMsg(`กำลังโหลด Keywords จาก Search Console...`);
       showStatus(`⏳ กำลังโหลด Keywords จาก Search Console...`, 'info');
       const gscKwRes = await fetch(`https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`, {
         method: 'POST',
@@ -270,6 +297,8 @@ export default function App() {
     } catch (e: any) {
       showStatus(`❌ ${e.message}`, 'error');
       console.error(e);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -317,10 +346,10 @@ export default function App() {
 
         <FilterSection filters={filters} setFilters={setFilters} onApply={applyFilters} availableCountries={availableCountries} />
         
-        <SummaryCards data={filteredData} />
+        <SummaryCards data={filteredData} prevData={prevFilteredData} />
         
         <ChartsSection data={filteredData} />
-        <GlobalDashboards data={filteredData} pageQueries={pageQueries} />
+        <GlobalDashboards data={filteredData} prevData={prevFilteredData} pageQueries={pageQueries} />
         
         <DataTable 
           data={tableData} 
@@ -336,6 +365,14 @@ export default function App() {
 
       {modals.tokenHelp && <TokenModal onClose={() => setModals(m => ({ ...m, tokenHelp: false }))} />}
       {modals.pageDetail && <PageDetailModal path={modals.pageDetail} isKeyword={modals.pageDetail.startsWith('[Keyword]')} pageListActive={pageListActive} data={allData} pageQueries={pageQueries} onClose={() => setModals(m => ({ ...m, pageDetail: null }))} />}
+      
+      {isLoading && (
+        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center">
+          <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+          <div className="text-lg font-bold text-indigo-900 mb-2">กำลังนำเข้าข้อมูล...</div>
+          <div className="text-sm font-medium text-slate-600">{loadingMsg}</div>
+        </div>
+      )}
     </div>
   );
 }
