@@ -25,9 +25,13 @@ export function FilterSection({ filters, setFilters, onApply, availableCountries
             onChange={e => { setFilters(f => ({ ...f, country: e.target.value })); setTimeout(onApply, 0); }}
           >
             <option value="all">🌏 All Countries</option>
-            <option value="intl">🌍 International (Exclude TH)</option>
-            <option value="th">🇹🇭 Thailand</option>
-            <option disabled>──────────</option>
+            {availableCountries.some(c => c.toLowerCase() !== 'thailand' && c.toLowerCase() !== 'th') && (
+              <option value="intl">🌍 International (Exclude TH)</option>
+            )}
+            {availableCountries.some(c => c.toLowerCase() === 'thailand' || c.toLowerCase() === 'th') && (
+              <option value="th">🇹🇭 Thailand</option>
+            )}
+            {availableCountries.length > 0 && <option disabled>──────────</option>}
             {availableCountries.map(c => (
               <option key={c} value={c}>{c}</option>
             ))}

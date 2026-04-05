@@ -53,13 +53,48 @@ export default function App() {
     }
   };
 
+  const matchPageList = useCallback((path: string) => {
+    if (!pageListActive || !pageList.length) return true;
+    return pageList.some(p => {
+      if (p.type === 'url') {
+        const np = p.path.toLowerCase().replace(/\/+$/, '') || '/';
+        const npath = path.toLowerCase().replace(/\/+$/, '') || '/';
+        return npath === np;
+      } else {
+        return path.toLowerCase().includes(p.path.toLowerCase());
+      }
+    });
+  }, [pageList, pageListActive]);
+
   const availableCountries = useMemo(() => {
     const set = new Set<string>();
+    const { dateFrom, dateTo } = filters;
+    
+    const countryMetrics = new Map<string, { users: number, views: number, impressions: number, clicks: number }>();
+
     allData.forEach(r => {
-      if (r.country && r.country !== 'Unknown') set.add(r.country);
+      if (dateFrom && r.date < dateFrom) return;
+      if (dateTo && r.date > dateTo) return;
+      if (!matchPageList(r.page)) return;
+      
+      if (r.country && r.country !== 'Unknown' && r.country !== '(not set)') {
+        const current = countryMetrics.get(r.country) || { users: 0, views: 0, impressions: 0, clicks: 0 };
+        current.users += r.users;
+        current.views += r.views;
+        current.impressions += r.impressions;
+        current.clicks += r.clicks;
+        countryMetrics.set(r.country, current);
+      }
     });
+
+    for (const [country, metrics] of countryMetrics.entries()) {
+      if (metrics.users > 0 || metrics.views > 0 || metrics.impressions > 0 || metrics.clicks > 0) {
+        set.add(country);
+      }
+    }
+
     return Array.from(set).sort();
-  }, [allData]);
+  }, [allData, filters.dateFrom, filters.dateTo, matchPageList]);
 
   useEffect(() => {
     const today = new Date();
@@ -73,19 +108,6 @@ export default function App() {
   const showStatus = (msg: string, type: 'info' | 'success' | 'warn' | 'error' = 'info') => {
     setStatus({ msg, type, visible: true });
   };
-
-  const matchPageList = useCallback((path: string) => {
-    if (!pageListActive || !pageList.length) return true;
-    return pageList.some(p => {
-      if (p.type === 'url') {
-        const np = p.path.toLowerCase().replace(/\/+$/, '') || '/';
-        const npath = path.toLowerCase().replace(/\/+$/, '') || '/';
-        return npath === np;
-      } else {
-        return path.toLowerCase().includes(p.path.toLowerCase());
-      }
-    });
-  }, [pageList, pageListActive]);
 
   const applyFilters = useCallback(() => {
     const { country, dateFrom, dateTo } = filters;
@@ -411,7 +433,7 @@ export default function App() {
 
       {modals.tokenHelp && <TokenModal onClose={() => setModals(m => ({ ...m, tokenHelp: false }))} />}
       {modals.realtime && <RealtimeModal propId={propId} token={token} onClose={() => setModals(m => ({ ...m, realtime: false }))} />}
-      {modals.pageDetail && <PageDetailModal path={modals.pageDetail} isKeyword={modals.pageDetail.startsWith('[Keyword]')} pageListActive={pageListActive} data={allData} pageQueries={pageQueries} siteUrl={siteUrl} onClose={() => setModals(m => ({ ...m, pageDetail: null }))} />}
+      {modals.pageDetail && <PageDetailModal path={modals.pageDetail} isKeyword={modals.pageDetail.startsWith('[Keyword]')} pageListActive={pageListActive} data={filteredData} pageQueries={pageQueries} siteUrl={siteUrl} onClose={() => setModals(m => ({ ...m, pageDetail: null }))} />}
       
       {isLoading && (
         <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center">

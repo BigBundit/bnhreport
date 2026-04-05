@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import { DataRow, PageQuery } from '../types';
 import { formatNumber, formatPercent } from '../utils';
 import { isAIOQuery } from '../utils';
-import { Globe, Key, Bot, Users, Plane, MapPin, TrendingUp, TrendingDown } from 'lucide-react';
+import { Globe, Key, Bot, Users, Plane, MapPin, TrendingUp, TrendingDown, BarChart2 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface GlobalDashboardsProps {
   data: DataRow[];
@@ -61,6 +62,12 @@ export function GlobalDashboards({ data, prevData = [], pageQueries }: GlobalDas
   const trendTotal = getTrend(audienceStats.totalViews, prevAudienceStats.totalViews);
   const trendThai = getTrend(audienceStats.thaiViews, prevAudienceStats.thaiViews);
   const trendInter = getTrend(audienceStats.interViews, prevAudienceStats.interViews);
+
+  const trafficChartData = [
+    { name: 'All Traffic', views: audienceStats.totalViews, color: '#3b82f6' }, // blue-500
+    { name: 'Thai Traffic', views: audienceStats.thaiViews, color: '#10b981' }, // emerald-500
+    { name: 'Inter Traffic', views: audienceStats.interViews, color: '#6366f1' }, // indigo-500
+  ];
 
   // 2. Top Countries
   const topCountries = useMemo(() => {
@@ -122,7 +129,7 @@ export function GlobalDashboards({ data, prevData = [], pageQueries }: GlobalDas
   return (
     <>
       {/* Audience Overview Widgets */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-5">
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 flex items-center gap-4">
           <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
             <Users size={24} className="text-blue-600" />
@@ -176,6 +183,30 @@ export function GlobalDashboards({ data, prevData = [], pageQueries }: GlobalDas
                 </span>
               )}
             </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/60 flex flex-col justify-center">
+          <h3 className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <BarChart2 size={14} /> Traffic Comparison
+          </h3>
+          <div className="h-[60px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={trafficChartData} layout="vertical" margin={{ top: 0, right: 20, left: 0, bottom: 0 }}>
+                <XAxis type="number" hide />
+                <YAxis dataKey="name" type="category" hide />
+                <Tooltip 
+                  cursor={{fill: 'transparent'}}
+                  contentStyle={{ fontSize: '11px', borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', padding: '4px 8px' }} 
+                  formatter={(value: number) => value.toLocaleString()} 
+                />
+                <Bar dataKey="views" radius={[0, 4, 4, 0]} barSize={12}>
+                  {trafficChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>

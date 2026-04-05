@@ -147,7 +147,7 @@ export function PageDetailModal({ path, isKeyword, pageListActive, data, pageQue
               <XAxis dataKey="date" tick={{ fontSize: 9 }} tickMargin={5} minTickGap={15} />
               <YAxis yAxisId="left" tick={{ fontSize: 9 }} />
               <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 9 }} />
-              <Tooltip contentStyle={{ fontSize: '11px', borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+              <Tooltip contentStyle={{ fontSize: '11px', borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} formatter={(value: number) => value.toLocaleString()} />
               <Legend wrapperStyle={{ fontSize: '10px' }} />
               <Line yAxisId="left" type="monotone" dataKey="v" name="Views" stroke="#2e7d32" strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }} />
               <Line yAxisId="right" type="monotone" dataKey="c" name="Clicks" stroke="#1565c0" strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }} />
