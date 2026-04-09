@@ -43,12 +43,13 @@ interface PageDetailModalProps {
   isKeyword: boolean;
   pageListActive: boolean;
   data: DataRow[];
-  pageQueries?: Record<string, PageQuery[]>;
+  pageQueries: Record<string, PageQuery[]>;
+  countryFilter?: string;
   siteUrl: string;
   onClose: () => void;
 }
 
-export function PageDetailModal({ path, isKeyword, pageListActive, data, pageQueries, siteUrl, onClose }: PageDetailModalProps) {
+export function PageDetailModal({ path, isKeyword, pageListActive, data, pageQueries, countryFilter = 'all', siteUrl, onClose }: PageDetailModalProps) {
   const rows = useMemo(() => {
     return data.filter(r => {
       if (isKeyword) {
@@ -93,6 +94,13 @@ export function PageDetailModal({ path, isKeyword, pageListActive, data, pageQue
       rows.forEach(r => {
         const kws = pageQueries[r.page] || [];
         kws.forEach(kw => {
+          if (countryFilter !== 'all') {
+            const c = (kw.country || '').toLowerCase();
+            const isThai = c === 'th' || c === 'thailand' || c === 'ไทย' || c === 'tha';
+            if (countryFilter === 'th' && !isThai) return;
+            if (countryFilter === 'intl' && isThai) return;
+            if (countryFilter !== 'th' && countryFilter !== 'intl' && c !== countryFilter) return;
+          }
           if (!kwMap.has(kw.query)) {
             kwMap.set(kw.query, { query: kw.query, clicks: 0, impressions: 0 });
           }
@@ -103,7 +111,24 @@ export function PageDetailModal({ path, isKeyword, pageListActive, data, pageQue
       });
       kwList = Array.from(kwMap.values());
     } else {
-      kwList = pageQueries[path] || [];
+      const kws = pageQueries[path] || [];
+      const kwMap = new Map<string, PageQuery>();
+      kws.forEach(kw => {
+        if (countryFilter !== 'all') {
+          const c = (kw.country || '').toLowerCase();
+          const isThai = c === 'th' || c === 'thailand' || c === 'ไทย' || c === 'tha';
+          if (countryFilter === 'th' && !isThai) return;
+          if (countryFilter === 'intl' && isThai) return;
+          if (countryFilter !== 'th' && countryFilter !== 'intl' && c !== countryFilter) return;
+        }
+        if (!kwMap.has(kw.query)) {
+          kwMap.set(kw.query, { query: kw.query, clicks: 0, impressions: 0 });
+        }
+        const v = kwMap.get(kw.query)!;
+        v.clicks += kw.clicks;
+        v.impressions += kw.impressions;
+      });
+      kwList = Array.from(kwMap.values());
     }
 
     const kws: PageQuery[] = [];
@@ -117,7 +142,7 @@ export function PageDetailModal({ path, isKeyword, pageListActive, data, pageQue
       keywords: kws.sort((a, b) => b.clicks - a.clicks),
       aioQueries: aios.sort((a, b) => b.clicks - a.clicks)
     };
-  }, [pageQueries, path, isKeyword, rows]);
+  }, [pageQueries, path, isKeyword, rows, countryFilter]);
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>

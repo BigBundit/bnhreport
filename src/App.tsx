@@ -339,17 +339,18 @@ export default function App() {
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           startDate: sDate, endDate: eDate,
-          dimensions: ['page', 'query'], rowLimit: 25000
+          dimensions: ['country', 'page', 'query'], rowLimit: 25000
         })
       });
       await handleApiError(gscKwRes, 'GSC Keywords');
       const gscKwData = await gscKwRes.json();
       const kwMap: Record<string, PageQuery[]> = {};
       (gscKwData.rows || []).forEach((r: any) => {
-        let pg = r.keys[0] || '';
+        const country = (r.keys[0] || '').toLowerCase();
+        let pg = r.keys[1] || '';
         if (pg.startsWith(B)) pg = pg.slice(B.length) || '/';
         if (!kwMap[pg]) kwMap[pg] = [];
-        kwMap[pg].push({ query: r.keys[1], clicks: r.clicks || 0, impressions: r.impressions || 0 });
+        kwMap[pg].push({ query: r.keys[2], clicks: r.clicks || 0, impressions: r.impressions || 0, country });
       });
       setPageQueries(kwMap);
 
@@ -417,7 +418,7 @@ export default function App() {
         <SummaryCards data={filteredData} prevData={prevFilteredData} activeUsers={activeUsers} onRealtimeClick={() => setModals(m => ({ ...m, realtime: true }))} />
         
         <ChartsSection data={filteredData} />
-        <GlobalDashboards data={filteredData} prevData={prevFilteredData} pageQueries={pageQueries} />
+        <GlobalDashboards data={filteredData} prevData={prevFilteredData} pageQueries={pageQueries} countryFilter={filters.country} />
         
         <DataTable 
           data={tableData} 
@@ -433,7 +434,7 @@ export default function App() {
 
       {modals.tokenHelp && <TokenModal onClose={() => setModals(m => ({ ...m, tokenHelp: false }))} />}
       {modals.realtime && <RealtimeModal propId={propId} token={token} onClose={() => setModals(m => ({ ...m, realtime: false }))} />}
-      {modals.pageDetail && <PageDetailModal path={modals.pageDetail} isKeyword={modals.pageDetail.startsWith('[Keyword]')} pageListActive={pageListActive} data={filteredData} pageQueries={pageQueries} siteUrl={siteUrl} onClose={() => setModals(m => ({ ...m, pageDetail: null }))} />}
+      {modals.pageDetail && <PageDetailModal path={modals.pageDetail} isKeyword={modals.pageDetail.startsWith('[Keyword]')} pageListActive={pageListActive} data={filteredData} pageQueries={pageQueries} countryFilter={filters.country} siteUrl={siteUrl} onClose={() => setModals(m => ({ ...m, pageDetail: null }))} />}
       
       {isLoading && (
         <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center">

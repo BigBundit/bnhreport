@@ -19,6 +19,7 @@ export interface PageQuery {
   query: string;
   clicks: number;
   impressions: number;
+  country?: string;
 }
 
 export interface PageListEntry {

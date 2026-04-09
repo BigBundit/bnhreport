@@ -9,9 +9,10 @@ interface GlobalDashboardsProps {
   data: DataRow[];
   prevData?: DataRow[];
   pageQueries: Record<string, PageQuery[]>;
+  countryFilter?: string;
 }
 
-export function GlobalDashboards({ data, prevData = [], pageQueries }: GlobalDashboardsProps) {
+export function GlobalDashboards({ data, prevData = [], pageQueries, countryFilter = 'all' }: GlobalDashboardsProps) {
   // 1. Audience Stats (Thai vs Inter)
   const audienceStats = useMemo(() => {
     let totalViews = 0;
@@ -107,6 +108,14 @@ export function GlobalDashboards({ data, prevData = [], pageQueries }: GlobalDas
 
       if (isActive) {
         queries.forEach(q => {
+          if (countryFilter !== 'all') {
+            const c = (q.country || '').toLowerCase();
+            const isThai = c === 'th' || c === 'thailand' || c === 'ไทย' || c === 'tha';
+            if (countryFilter === 'th' && !isThai) return;
+            if (countryFilter === 'intl' && isThai) return;
+            if (countryFilter !== 'th' && countryFilter !== 'intl' && c !== countryFilter) return;
+          }
+
           if (isAIOQuery(q.query)) {
             if (!aioMap.has(q.query)) aioMap.set(q.query, { clicks: 0, impressions: 0 });
             aioMap.get(q.query)!.clicks += q.clicks;
@@ -124,7 +133,7 @@ export function GlobalDashboards({ data, prevData = [], pageQueries }: GlobalDas
       topKeywords: Array.from(kwMap.entries()).map(([q, m]) => ({ query: q, ...m })).sort((a, b) => b.clicks - a.clicks).slice(0, 15),
       topAIO: Array.from(aioMap.entries()).map(([q, m]) => ({ query: q, ...m })).sort((a, b) => b.clicks - a.clicks).slice(0, 15)
     };
-  }, [data, pageQueries]);
+  }, [data, pageQueries, countryFilter]);
 
   return (
     <>
