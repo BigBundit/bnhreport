@@ -49,8 +49,14 @@ export default function App() {
       }
 
       const res = await fetch('/api/auth/status');
-      const data = await res.json();
-      setIsAuthenticated(data.authenticated);
+      const text = await res.text();
+      try {
+        const data = JSON.parse(text);
+        setIsAuthenticated(data.authenticated);
+      } catch (e) {
+        console.error('Invalid JSON from auth status:', text.slice(0, 100));
+        throw new Error('Server returned invalid response');
+      }
     } catch (e) {
       console.error('Failed to check auth status', e);
       showStatus('❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', 'error');
@@ -75,7 +81,14 @@ export default function App() {
   const handleLogin = async () => {
     try {
       const res = await fetch('/api/auth/url');
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        throw new Error('Server returned invalid response (Not JSON)');
+      }
+      
       if (data.url) {
         window.open(data.url, 'google_oauth', 'width=600,height=700');
       } else if (data.error) {
