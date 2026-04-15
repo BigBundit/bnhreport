@@ -5,6 +5,7 @@ import fs from 'fs';
 import axios from 'axios';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import { createClient } from '@libsql/client';
 
 dotenv.config();
 
@@ -23,20 +24,51 @@ app.use((req, res, next) => {
   next();
 });
 
-const TOKEN_FILE = path.join(process.cwd(), '.tokens.json');
+// Turso Database Setup
+const tursoUrl = process.env.TURSO_DATABASE_URL || 'libsql://bnhreport-bigbundit.aws-ap-northeast-1.turso.io';
+const tursoToken = process.env.TURSO_AUTH_TOKEN || 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzYyNjMxOTksImlkIjoiMDE5ZDkxODktNTkwMS03YTMyLTk3MzYtODM1NDBjN2IxMzkwIiwicmlkIjoiOTk4MjkzMDItNzIzOS00YjUzLTlhM2MtNmI3YTBiY2E5NmE5In0.AGXZB_qQzdsoZkOtiRJiEhyY5TiCH6z3aH4bJQI8dC8uOcST8tPWdsd8oN1kTpmUs6iMmG_JQXFWjNfv-rsoBQ';
 
-function saveTokens(tokens: any) {
-  fs.writeFileSync(TOKEN_FILE, JSON.stringify(tokens));
+const db = createClient({
+  url: tursoUrl,
+  authToken: tursoToken,
+});
+
+// Initialize DB
+async function initDb() {
+  try {
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS oauth_tokens (
+        id TEXT PRIMARY KEY,
+        tokens TEXT NOT NULL
+      )
+    `);
+    console.log('Turso DB initialized successfully');
+  } catch (e) {
+    console.error('Failed to initialize Turso DB:', e);
+  }
+}
+initDb();
+
+async function saveTokens(tokens: any) {
+  try {
+    await db.execute({
+      sql: `INSERT INTO oauth_tokens (id, tokens) VALUES ('default', ?)
+            ON CONFLICT(id) DO UPDATE SET tokens = excluded.tokens`,
+      args: [JSON.stringify(tokens)]
+    });
+  } catch (e) {
+    console.error('Error saving tokens to Turso:', e);
+  }
 }
 
-function getTokens() {
+async function getTokens() {
   try {
-    if (fs.existsSync(TOKEN_FILE)) {
-      const content = fs.readFileSync(TOKEN_FILE, 'utf-8');
-      return JSON.parse(content);
+    const result = await db.execute("SELECT tokens FROM oauth_tokens WHERE id = 'default'");
+    if (result.rows.length > 0) {
+      return JSON.parse(result.rows[0].tokens as string);
     }
   } catch (e) {
-    console.error('Error reading or parsing tokens file:', e);
+    console.error('Error reading tokens from Turso:', e);
   }
   return null;
 }
@@ -92,7 +124,7 @@ app.get('/auth/callback', async (req, res) => {
     });
 
     const tokens = response.data;
-    saveTokens(tokens);
+    await saveTokens(tokens);
 
     res.send(`
       <html>
@@ -115,20 +147,22 @@ app.get('/auth/callback', async (req, res) => {
   }
 });
 
-app.get('/api/auth/status', (req, res) => {
-  const tokens = getTokens();
+app.get('/api/auth/status', async (req, res) => {
+  const tokens = await getTokens();
   res.json({ authenticated: !!tokens?.refresh_token });
 });
 
-app.post('/api/auth/logout', (req, res) => {
-  if (fs.existsSync(TOKEN_FILE)) {
-    fs.unlinkSync(TOKEN_FILE);
+app.post('/api/auth/logout', async (req, res) => {
+  try {
+    await db.execute("DELETE FROM oauth_tokens WHERE id = 'default'");
+  } catch (e) {
+    console.error('Error deleting tokens from Turso:', e);
   }
   res.json({ success: true });
 });
 
 async function getAccessToken() {
-  const tokens = getTokens();
+  const tokens = await getTokens();
   if (!tokens || !tokens.refresh_token) {
     throw new Error('No refresh token available');
   }
@@ -144,7 +178,7 @@ async function getAccessToken() {
     });
 
     const newTokens = { ...tokens, ...response.data };
-    saveTokens(newTokens);
+    await saveTokens(newTokens);
     return newTokens.access_token;
   } catch (error: any) {
     console.error('Error refreshing token:', error.response?.data || error.message);
