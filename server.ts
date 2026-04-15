@@ -80,7 +80,14 @@ app.get('/api/health', (req, res) => {
 // Google OAuth Config
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const REDIRECT_URI = process.env.APP_URL ? `${process.env.APP_URL}/auth/callback` : `http://localhost:3000/auth/callback`;
+const getBaseUrl = () => {
+  if (process.env.APP_URL) return process.env.APP_URL;
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return `http://localhost:3000`;
+};
+
+const REDIRECT_URI = `${getBaseUrl()}/auth/callback`;
 
 app.get('/api/auth/url', (req, res) => {
   if (!CLIENT_ID) {

@@ -79,6 +79,11 @@ export default function App() {
   }, []);
 
   const handleLogin = async () => {
+    const authWindow = window.open('', 'google_oauth', 'width=600,height=700');
+    if (authWindow) {
+      authWindow.document.write('กำลังโหลดหน้าเข้าสู่ระบบ Google...');
+    }
+
     try {
       const res = await fetch('/api/auth/url');
       const text = await res.text();
@@ -86,15 +91,22 @@ export default function App() {
       try {
         data = JSON.parse(text);
       } catch (e) {
+        if (authWindow) authWindow.close();
         throw new Error('Server returned invalid response (Not JSON)');
       }
       
       if (data.url) {
-        window.open(data.url, 'google_oauth', 'width=600,height=700');
+        if (authWindow) {
+          authWindow.location.href = data.url;
+        } else {
+          window.open(data.url, 'google_oauth', 'width=600,height=700');
+        }
       } else if (data.error) {
+        if (authWindow) authWindow.close();
         showStatus(`❌ ${data.error}`, 'error');
       }
     } catch (e: any) {
+      if (authWindow) authWindow.close();
       showStatus(`❌ ${e.message}`, 'error');
     }
   };
