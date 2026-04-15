@@ -20,7 +20,7 @@ export default function App() {
   
   const [propId, setPropId] = useState('283309066');
   const [siteUrl, setSiteUrl] = useState('https://www.bnhhospital.com/');
-  const [token, setToken] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   
   const [pageList, setPageList] = useState<PageListEntry[]>([]);
   const [pageListActive, setPageListActive] = useState(false);
@@ -38,18 +38,236 @@ export default function App() {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [activeUsers, setActiveUsers] = useState<number | null>(null);
 
-  const handleApiError = async (res: Response, prefix: string) => {
-    if (!res.ok) {
-      let errMsg = res.statusText || String(res.status);
-      try {
-        const errData = await res.json();
-        errMsg = errData?.error?.message || errData?.error || errMsg;
-      } catch (e) {}
-      const errStr = String(errMsg).toLowerCase();
-      if (res.status === 401 || res.status === 403 || errStr.includes('invalid authentication') || errStr.includes('unauthenticated')) {
-        throw new Error('Access Token ไม่ถูกต้องหรือหมดอายุ กรุณากดปุ่ม "วิธีดึง Token" เพื่อรับ Token ใหม่');
+  const checkAuthStatus = useCallback(async () => {
+    try {
+      // First check health
+      const healthRes = await fetch('/api/health');
+      if (!healthRes.ok) {
+        console.error('Server health check failed');
+        showStatus('❌ เซิร์ฟเวอร์มีปัญหา กรุณารีเฟรชหน้าจอ', 'error');
+        return;
       }
-      throw new Error(`${prefix}: ${errMsg}`);
+
+      const res = await fetch('/api/auth/status');
+      const data = await res.json();
+      setIsAuthenticated(data.authenticated);
+    } catch (e) {
+      console.error('Failed to check auth status', e);
+      showStatus('❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', 'error');
+    }
+  }, []);
+
+  useEffect(() => {
+    checkAuthStatus();
+  }, [checkAuthStatus]);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+        setIsAuthenticated(true);
+        showStatus('✅ เข้าสู่ระบบสำเร็จ', 'success');
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  const handleLogin = async () => {
+    try {
+      const res = await fetch('/api/auth/url');
+      const data = await res.json();
+      if (data.url) {
+        window.open(data.url, 'google_oauth', 'width=600,height=700');
+      } else if (data.error) {
+        showStatus(`❌ ${data.error}`, 'error');
+      }
+    } catch (e: any) {
+      showStatus(`❌ ${e.message}`, 'error');
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      setIsAuthenticated(false);
+      showStatus('🗑️ ออกจากระบบแล้ว', 'warn');
+    } catch (e) {
+      console.error('Failed to logout', e);
+    }
+  };
+
+  const proxyFetch = async (service: string, url: string, method: string = 'GET', body: any = null) => {
+    try {
+      const res = await fetch(`/api/fetch-data/${service}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, method, body })
+      });
+      
+      const contentType = res.headers.get('content-type');
+      if (!res.ok) {
+        if (contentType && contentType.includes('application/json')) {
+          const errData = await res.json();
+          if (errData.error) {
+            const gErr = errData.error;
+            let msg = gErr.message || gErr.status || 'Unknown error';
+            
+            // Extract more details from Google's structured error if available
+            if (gErr.details && Array.isArray(gErr.details)) {
+              const info = gErr.details.find((d: any) => d['@type']?.includes('ErrorInfo'));
+              if (info) {
+                msg += ` (Reason: ${info.reason})`;
+                if (info.reason === 'SERVICE_DISABLED') {
+                  msg += " <- กรุณาคลิกลิงก์ใน Console เพื่อเปิดใช้งาน API";
+                }
+              }
+              
+              const help = gErr.details.find((d: any) => d['@type']?.includes('Help'));
+              if (help && help.links && help.links[0]) {
+                console.log(`%c [API Activation Link]: ${help.links[0].url} `, 'background: #222; color: #bada55; font-size: 14px');
+              }
+            }
+            throw new Error(`${service}: ${msg}`);
+          }
+          throw new Error(`${service}: ${JSON.stringify(errData)}`);
+        } else {
+          const text = await res.text();
+          if (text.includes('<html>')) {
+            throw new Error(`${service}: Server returned an HTML error page (Status ${res.status}). This usually means the proxy route failed or the server crashed.`);
+          }
+          throw new Error(`${service} (${res.status}): ${text.slice(0, 200)}`);
+        }
+      }
+      
+      if (contentType && contentType.includes('application/json')) {
+        return res.json();
+      }
+      return res.text();
+    } catch (e: any) {
+      if (e.message.includes('Unexpected token') || e.message.includes('is not valid JSON')) {
+        throw new Error(`${service}: Failed to parse server response as JSON. The server might have returned an HTML error page.`);
+      }
+      throw e;
+    }
+  };
+
+  const handleLoadData = async () => {
+    if (!isAuthenticated) {
+      showStatus('⚠️ กรุณาเข้าสู่ระบบด้วย Google ก่อน', 'warn');
+      return;
+    }
+    setIsLoading(true);
+    setLoadingProgress(10);
+    setLoadingMsg('กำลังโหลดข้อมูล GA4...');
+    showStatus('⏳ กำลังโหลดข้อมูล GA4...', 'info');
+    try {
+      const today = new Date();
+      const start = new Date(today);
+      start.setMonth(start.getMonth() - 6);
+      const sDate = start.toISOString().split('T')[0];
+      const eDate = today.toISOString().split('T')[0];
+
+      const gaData = await proxyFetch('GA4', `https://analyticsdata.googleapis.com/v1beta/properties/${propId}:runReport`, 'POST', {
+        dateRanges: [{ startDate: sDate, endDate: eDate }],
+        dimensions: [{ name: 'date' }, { name: 'pagePath' }, { name: 'country' }],
+        metrics: [{ name: 'activeUsers' }, { name: 'sessions' }, { name: 'screenPageViews' }, { name: 'averageSessionDuration' }, { name: 'engagementRate' }, { name: 'keyEvents' }],
+        limit: 50000
+      });
+
+      const gaRows = (gaData.rows || []).map((r: any) => {
+        const [yr, mo, dy] = r.dimensionValues[0].value.match(/(.{4})(.{2})(.{2})/).slice(1);
+        return {
+          date: `${yr}-${mo}-${dy}`, page: r.dimensionValues[1].value, country: r.dimensionValues[2].value,
+          users: +r.metricValues[0].value, sessions: +r.metricValues[1].value, views: +r.metricValues[2].value,
+          engTime: +r.metricValues[3].value, engRate: +r.metricValues[4].value, keyEvents: +r.metricValues[5].value,
+          impressions: 0, clicks: 0, ctr: 0, position: 0
+        };
+      });
+
+      // Fetch Realtime Data
+      try {
+        const realtimeData = await proxyFetch('GA4-Realtime', `https://analyticsdata.googleapis.com/v1beta/properties/${propId}:runRealtimeReport`, 'POST', {
+          metrics: [{ name: 'activeUsers' }]
+        });
+        const active = realtimeData.rows?.[0]?.metricValues?.[0]?.value || 0;
+        setActiveUsers(Number(active));
+      } catch (err) {
+        console.warn('Failed to fetch realtime data', err);
+      }
+
+      setLoadingProgress(40);
+      setLoadingMsg(`กำลังโหลด Search Console... (GA4: ${gaRows.length.toLocaleString()} rows)`);
+      showStatus(`⏳ กำลังโหลด Search Console... (GA4: ${gaRows.length.toLocaleString()} rows)`, 'info');
+
+      const gscData = await proxyFetch('GSC', `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`, 'POST', {
+        startDate: sDate, endDate: eDate,
+        dimensions: ['date', 'page', 'country'], rowLimit: 25000
+      });
+
+      const B = siteUrl.replace(/\/$/, '');
+      const gscRows = (gscData.rows || []).map((r: any) => {
+        let pg = r.keys[1] || '';
+        if (pg.startsWith(B)) pg = pg.slice(B.length) || '/';
+        return {
+          date: r.keys[0], page: pg, country: (r.keys[2] || '').toLowerCase(),
+          impressions: r.impressions || 0, clicks: r.clicks || 0, ctr: r.ctr || 0, position: r.position || 0
+        };
+      });
+
+      const map = new Map<string, DataRow>();
+      gaRows.forEach((r: any) => map.set(`${r.date}|${r.page}|${r.country}`, { ...r }));
+      gscRows.forEach((r: any) => {
+        const pk = `${r.date}|${r.page}`;
+        let found = false;
+        for (let [k, v] of map) {
+          if (k.startsWith(pk)) {
+            v.impressions += r.impressions; v.clicks += r.clicks;
+            if (v.impressions > 0) v.ctr = v.clicks / v.impressions;
+            if (r.position > 0) v.position = v.position ? ((v.position + r.position) / 2) : r.position;
+            found = true; break;
+          }
+        }
+        if (!found) map.set(`${pk}|${r.country}_g`, {
+          date: r.date, page: r.page, country: r.country,
+          users: 0, sessions: 0, views: 0, engTime: 0, engRate: 0, keyEvents: 0,
+          impressions: r.impressions, clicks: r.clicks, ctr: r.ctr, position: r.position
+        });
+      });
+
+      const merged = Array.from(map.values());
+      setAllData(merged);
+
+      setLoadingProgress(70);
+      setLoadingMsg(`กำลังโหลด Keywords จาก Search Console...`);
+      showStatus(`⏳ กำลังโหลด Keywords จาก Search Console...`, 'info');
+      
+      const gscKwData = await proxyFetch('GSC-Keywords', `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`, 'POST', {
+        startDate: sDate, endDate: eDate,
+        dimensions: ['country', 'page', 'query'], rowLimit: 25000
+      });
+
+      const kwMap: Record<string, PageQuery[]> = {};
+      (gscKwData.rows || []).forEach((r: any) => {
+        const country = (r.keys[0] || '').toLowerCase();
+        let pg = r.keys[1] || '';
+        if (pg.startsWith(B)) pg = pg.slice(B.length) || '/';
+        if (!kwMap[pg]) kwMap[pg] = [];
+        kwMap[pg].push({ query: r.keys[2], clicks: r.clicks || 0, impressions: r.impressions || 0, country });
+      });
+      setPageQueries(kwMap);
+
+      setLoadingProgress(100);
+      showStatus(`✅ โหลดสำเร็จ ${merged.length.toLocaleString()} รายการ (GA4+GSC)`, 'success');
+      
+      setTimeout(() => {
+        setIsLoading(false);
+        setLoadingProgress(0);
+      }, 500);
+    } catch (e: any) {
+      showStatus(`❌ ${e.message}`, 'error');
+      console.error(e);
+      setIsLoading(false);
+      setLoadingProgress(0);
     }
   };
 
@@ -228,148 +446,6 @@ export default function App() {
     applyFilters();
   }, [allData, filters, pageListActive, applyFilters]);
 
-  const handleLoadData = async () => {
-    if (!token.trim()) {
-      showStatus('⚠️ กรุณากรอก Access Token', 'warn');
-      return;
-    }
-    setIsLoading(true);
-    setLoadingProgress(10);
-    setLoadingMsg('กำลังโหลดข้อมูล GA4...');
-    showStatus('⏳ กำลังโหลดข้อมูล GA4...', 'info');
-    try {
-      const today = new Date();
-      const start = new Date(today);
-      start.setMonth(start.getMonth() - 6);
-      const sDate = start.toISOString().split('T')[0];
-      const eDate = today.toISOString().split('T')[0];
-
-      const gaRes = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propId}:runReport`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dateRanges: [{ startDate: sDate, endDate: eDate }],
-          dimensions: [{ name: 'date' }, { name: 'pagePath' }, { name: 'country' }],
-          metrics: [{ name: 'activeUsers' }, { name: 'sessions' }, { name: 'screenPageViews' }, { name: 'averageSessionDuration' }, { name: 'engagementRate' }, { name: 'keyEvents' }],
-          limit: 50000
-        })
-      });
-      await handleApiError(gaRes, 'GA4');
-      const gaData = await gaRes.json();
-      const gaRows = (gaData.rows || []).map((r: any) => {
-        const [yr, mo, dy] = r.dimensionValues[0].value.match(/(.{4})(.{2})(.{2})/).slice(1);
-        return {
-          date: `${yr}-${mo}-${dy}`, page: r.dimensionValues[1].value, country: r.dimensionValues[2].value,
-          users: +r.metricValues[0].value, sessions: +r.metricValues[1].value, views: +r.metricValues[2].value,
-          engTime: +r.metricValues[3].value, engRate: +r.metricValues[4].value, keyEvents: +r.metricValues[5].value,
-          impressions: 0, clicks: 0, ctr: 0, position: 0
-        };
-      });
-
-      // Fetch Realtime Data
-      try {
-        const realtimeRes = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propId}:runRealtimeReport`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            metrics: [{ name: 'activeUsers' }]
-          })
-        });
-        if (realtimeRes.ok) {
-          const realtimeData = await realtimeRes.json();
-          const active = realtimeData.rows?.[0]?.metricValues?.[0]?.value || 0;
-          setActiveUsers(Number(active));
-        }
-      } catch (err) {
-        console.warn('Failed to fetch realtime data', err);
-      }
-
-      setLoadingProgress(40);
-      setLoadingMsg(`กำลังโหลด Search Console... (GA4: ${gaRows.length.toLocaleString()} rows)`);
-      showStatus(`⏳ กำลังโหลด Search Console... (GA4: ${gaRows.length.toLocaleString()} rows)`, 'info');
-
-      const gscRes = await fetch(`https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          startDate: sDate, endDate: eDate,
-          dimensions: ['date', 'page', 'country'], rowLimit: 25000
-        })
-      });
-      await handleApiError(gscRes, 'GSC');
-      const gscData = await gscRes.json();
-      const B = siteUrl.replace(/\/$/, '');
-      const gscRows = (gscData.rows || []).map((r: any) => {
-        let pg = r.keys[1] || '';
-        if (pg.startsWith(B)) pg = pg.slice(B.length) || '/';
-        return {
-          date: r.keys[0], page: pg, country: (r.keys[2] || '').toLowerCase(),
-          impressions: r.impressions || 0, clicks: r.clicks || 0, ctr: r.ctr || 0, position: r.position || 0
-        };
-      });
-
-      const map = new Map<string, DataRow>();
-      gaRows.forEach((r: any) => map.set(`${r.date}|${r.page}|${r.country}`, { ...r }));
-      gscRows.forEach((r: any) => {
-        const pk = `${r.date}|${r.page}`;
-        let found = false;
-        for (let [k, v] of map) {
-          if (k.startsWith(pk)) {
-            v.impressions += r.impressions; v.clicks += r.clicks;
-            if (v.impressions > 0) v.ctr = v.clicks / v.impressions;
-            if (r.position > 0) v.position = v.position ? ((v.position + r.position) / 2) : r.position;
-            found = true; break;
-          }
-        }
-        if (!found) map.set(`${pk}|${r.country}_g`, {
-          date: r.date, page: r.page, country: r.country,
-          users: 0, sessions: 0, views: 0, engTime: 0, engRate: 0, keyEvents: 0,
-          impressions: r.impressions, clicks: r.clicks, ctr: r.ctr, position: r.position
-        });
-      });
-
-      const merged = Array.from(map.values());
-      setAllData(merged);
-
-      setLoadingProgress(70);
-      setLoadingMsg(`กำลังโหลด Keywords จาก Search Console...`);
-      showStatus(`⏳ กำลังโหลด Keywords จาก Search Console...`, 'info');
-      const gscKwRes = await fetch(`https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          startDate: sDate, endDate: eDate,
-          dimensions: ['country', 'page', 'query'], rowLimit: 25000
-        })
-      });
-      await handleApiError(gscKwRes, 'GSC Keywords');
-      const gscKwData = await gscKwRes.json();
-      const kwMap: Record<string, PageQuery[]> = {};
-      (gscKwData.rows || []).forEach((r: any) => {
-        const country = (r.keys[0] || '').toLowerCase();
-        let pg = r.keys[1] || '';
-        if (pg.startsWith(B)) pg = pg.slice(B.length) || '/';
-        if (!kwMap[pg]) kwMap[pg] = [];
-        kwMap[pg].push({ query: r.keys[2], clicks: r.clicks || 0, impressions: r.impressions || 0, country });
-      });
-      setPageQueries(kwMap);
-
-      setLoadingProgress(100);
-      showStatus(`✅ โหลดสำเร็จ ${merged.length.toLocaleString()} รายการ (GA4+GSC)`, 'success');
-      
-      // Small delay to show 100% before hiding
-      setTimeout(() => {
-        setIsLoading(false);
-        setLoadingProgress(0);
-      }, 500);
-    } catch (e: any) {
-      showStatus(`❌ ${e.message}`, 'error');
-      console.error(e);
-      setIsLoading(false);
-      setLoadingProgress(0);
-    }
-  };
-
   const statusColors = {
     info: 'bg-blue-50 text-blue-800',
     success: 'bg-green-50 text-green-800',
@@ -385,7 +461,9 @@ export default function App() {
         <AuthSection 
           propId={propId} setPropId={setPropId}
           siteUrl={siteUrl} setSiteUrl={setSiteUrl}
-          token={token} setToken={setToken}
+          isAuthenticated={isAuthenticated}
+          onLogin={handleLogin}
+          onLogout={handleLogout}
           onLoadData={handleLoadData}
           onShowTokenHelp={() => setModals(m => ({ ...m, tokenHelp: true }))}
         />
@@ -410,7 +488,6 @@ export default function App() {
             showStatus('🗑️ ล้าง Page List แล้ว', 'warn');
           }}
           onShowStatus={showStatus}
-          onShowPage={(path) => setModals(m => ({ ...m, pageDetail: path }))}
         />
 
         <FilterSection filters={filters} setFilters={setFilters} onApply={applyFilters} availableCountries={availableCountries} />
@@ -433,7 +510,7 @@ export default function App() {
       </div>
 
       {modals.tokenHelp && <TokenModal onClose={() => setModals(m => ({ ...m, tokenHelp: false }))} />}
-      {modals.realtime && <RealtimeModal propId={propId} token={token} onClose={() => setModals(m => ({ ...m, realtime: false }))} />}
+      {modals.realtime && <RealtimeModal propId={propId} isAuthenticated={isAuthenticated} onClose={() => setModals(m => ({ ...m, realtime: false }))} />}
       {modals.pageDetail && <PageDetailModal path={modals.pageDetail} isKeyword={modals.pageDetail.startsWith('[Keyword]')} pageListActive={pageListActive} data={filteredData} pageQueries={pageQueries} countryFilter={filters.country} siteUrl={siteUrl} onClose={() => setModals(m => ({ ...m, pageDetail: null }))} />}
       
       {isLoading && (

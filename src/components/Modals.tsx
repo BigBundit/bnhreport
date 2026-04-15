@@ -9,29 +9,43 @@ interface TokenModalProps {
 }
 
 export function TokenModal({ onClose }: TokenModalProps) {
+  const appUrl = window.location.origin;
+  const callbackUrl = `${appUrl}/auth/callback`;
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl p-6 max-w-[640px] w-full max-h-[88vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-indigo-900 text-base font-bold">🔐 วิธีรับ OAuth Access Token</h2>
+          <h2 className="text-indigo-900 text-base font-bold">🛠️ การตั้งค่า Google OAuth (ถาวร)</h2>
           <button onClick={onClose} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-all">✕</button>
         </div>
-        <ol className="list-decimal pl-5 leading-loose text-[13px]">
-          <li>เปิด <a href="https://developers.google.com/oauthplayground" target="_blank" rel="noreferrer" className="text-blue-700 font-semibold hover:underline">Google OAuth Playground</a></li>
-          <li>ในช่อง "Input your own scopes" ใส่:<br/>
-            <div className="font-mono text-[11px] bg-slate-50 p-2 rounded-md my-1.5 leading-relaxed break-all border border-slate-100">
-              https://www.googleapis.com/auth/analytics.readonly https://www.googleapis.com/auth/webmasters.readonly
-            </div>
-          </li>
-          <li>คลิก <strong>"Authorize APIs"</strong> → เลือก Google account</li>
-          <li>เลือก scope ทั้งหมด → คลิก <strong>"ดำเนินการต่อ"</strong></li>
-          <li>คลิก <strong>"Exchange authorization code for tokens"</strong></li>
-          <li>Copy <strong>Access token</strong> (ya29.xxx...) ใส่ในช่อง Access Token</li>
-        </ol>
-        <p className="mt-2.5 text-[11px] text-slate-500">⚠️ Token หมดอายุใน 1 ชั่วโมง</p>
-        <div className="mt-4 flex gap-2.5">
-          <a href="https://developers.google.com/oauthplayground" target="_blank" rel="noreferrer" className="px-3 py-1.5 bg-indigo-900 text-white rounded-lg text-xs font-semibold hover:bg-indigo-800 transition-all">เปิด OAuth Playground</a>
-          <button onClick={onClose} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-all">ปิด</button>
+        
+        <div className="space-y-4 text-[13px] text-slate-700 leading-relaxed">
+          <p>เพื่อให้แอปสามารถดึงข้อมูลได้ตลอดเวลาโดยไม่ต้องกรอก Token ใหม่ทุกชั่วโมง คุณต้องตั้งค่า <strong>OAuth Client ID</strong> ใน Google Cloud Console:</p>
+          
+          <ol className="list-decimal pl-5 space-y-2">
+            <li>ไปที่ <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer" className="text-blue-600 font-semibold hover:underline">Google Cloud Console</a></li>
+            <li>คลิก <strong>"Create Credentials"</strong> → <strong>"OAuth client ID"</strong></li>
+            <li>เลือก Application type เป็น <strong>"Web application"</strong></li>
+            <li>ในส่วน <strong>"Authorized redirect URIs"</strong> ให้เพิ่ม URL นี้:<br/>
+              <code className="block bg-slate-50 p-2 rounded border border-slate-200 mt-1 font-mono text-[11px] break-all select-all">{callbackUrl}</code>
+            </li>
+            <li>คลิก <strong>"Create"</strong> แล้วคุณจะได้ <strong>Client ID</strong> และ <strong>Client Secret</strong></li>
+            <li>นำค่าที่ได้ไปใส่ใน <strong>Environment Variables</strong> ของแอปนี้ (ในเมนู Settings):
+              <ul className="list-disc pl-5 mt-1 text-slate-500">
+                <li><code>GOOGLE_CLIENT_ID</code></li>
+                <li><code>GOOGLE_CLIENT_SECRET</code></li>
+              </ul>
+            </li>
+          </ol>
+
+          <div className="bg-amber-50 border border-amber-100 p-3 rounded-xl text-[12px] text-amber-800">
+            <strong>หมายเหตุ:</strong> หลังจากตั้งค่าเสร็จแล้ว ให้กดปุ่ม <strong>"Login with Google"</strong> เพื่อเริ่มใช้งานครั้งแรก ระบบจะจำสิทธิ์ไว้ตลอดไปครับ
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <button onClick={onClose} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-semibold hover:bg-indigo-700 transition-all shadow-sm">เข้าใจแล้ว</button>
         </div>
       </div>
     </div>
@@ -281,44 +295,40 @@ export function PageDetailModal({ path, isKeyword, pageListActive, data, pageQue
 
 interface RealtimeModalProps {
   propId: string;
-  token: string;
+  isAuthenticated: boolean;
   onClose: () => void;
 }
 
-export function RealtimeModal({ propId, token, onClose }: RealtimeModalProps) {
+export function RealtimeModal({ propId, isAuthenticated, onClose }: RealtimeModalProps) {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const fetchData = async () => {
-    if (!token) {
-      setError('กรุณาระบุ Access Token ก่อน');
+    if (!isAuthenticated) {
+      setError('กรุณาเข้าสู่ระบบก่อน');
       setLoading(false);
       return;
     }
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`https://analyticsdata.googleapis.com/v1beta/properties/${propId}:runRealtimeReport`, {
+      const res = await fetch(`/api/fetch-data/GA4-Realtime`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          dimensions: [{ name: 'unifiedScreenName' }, { name: 'deviceCategory' }, { name: 'country' }],
-          metrics: [{ name: 'activeUsers' }]
+          url: `https://analyticsdata.googleapis.com/v1beta/properties/${propId}:runRealtimeReport`,
+          method: 'POST',
+          body: {
+            dimensions: [{ name: 'unifiedScreenName' }, { name: 'deviceCategory' }, { name: 'country' }],
+            metrics: [{ name: 'activeUsers' }]
+          }
         })
       });
       if (!res.ok) {
-        let errMsg = res.statusText || String(res.status);
-        try {
-          const errData = await res.json();
-          errMsg = errData?.error?.message || errData?.error || errMsg;
-        } catch (e) {}
-        const errStr = String(errMsg).toLowerCase();
-        if (res.status === 401 || res.status === 403 || errStr.includes('invalid authentication') || errStr.includes('unauthenticated')) {
-          throw new Error('Access Token ไม่ถูกต้องหรือหมดอายุ กรุณารับ Token ใหม่');
-        }
-        throw new Error(`ไม่สามารถดึงข้อมูล Realtime ได้: ${errMsg}`);
+        const errData = await res.json();
+        throw new Error(errData.error || res.statusText);
       }
       const json = await res.json();
       const rows = (json.rows || []).map((r: any) => ({
@@ -340,7 +350,7 @@ export function RealtimeModal({ propId, token, onClose }: RealtimeModalProps) {
     fetchData();
     const interval = setInterval(fetchData, 10000); // Refresh every 10s
     return () => clearInterval(interval);
-  }, [propId, token]);
+  }, [propId, isAuthenticated]);
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>

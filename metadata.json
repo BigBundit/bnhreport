@@ -1,5 +1,5 @@
 {
   "name": "BNH GSC+GA4",
-  "description": "",
+  "description": "SEO Dashboard with GA4 and Search Console integration using Google OAuth for permanent access.",
   "requestFramePermissions": []
 }
