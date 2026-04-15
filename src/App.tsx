@@ -81,7 +81,7 @@ export default function App() {
   const handleLogin = async () => {
     const authWindow = window.open('', 'google_oauth', 'width=600,height=700');
     if (authWindow) {
-      authWindow.document.write('กำลังโหลดหน้าเข้าสู่ระบบ Google...');
+      authWindow.document.write('<body style="font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;"><div style="text-align: center;"><h2>กำลังโหลดหน้าเข้าสู่ระบบ Google...</h2><p id="status">Connecting to server...</p></div></body>');
     }
 
     try {
@@ -91,8 +91,11 @@ export default function App() {
       try {
         data = JSON.parse(text);
       } catch (e) {
-        if (authWindow) authWindow.close();
-        throw new Error('Server returned invalid response (Not JSON)');
+        if (authWindow) {
+          authWindow.document.getElementById('status')!.innerHTML = `<span style="color:red">Server Error (Not JSON)</span><br><br><pre style="text-align:left; background:#eee; padding:10px; max-width:500px; overflow:auto;">${text.substring(0, 500)}</pre>`;
+        }
+        showStatus(`❌ API Error: ${res.status}. See popup for details.`, 'error');
+        return; // Don't throw, we handled it visually in the window
       }
       
       if (data.url) {
@@ -102,11 +105,15 @@ export default function App() {
           window.open(data.url, 'google_oauth', 'width=600,height=700');
         }
       } else if (data.error) {
-        if (authWindow) authWindow.close();
+        if (authWindow) {
+          authWindow.document.getElementById('status')!.innerHTML = `<span style="color:red">Server reported error: ${data.error}</span>`;
+        }
         showStatus(`❌ ${data.error}`, 'error');
       }
     } catch (e: any) {
-      if (authWindow) authWindow.close();
+      if (authWindow) {
+        authWindow.document.getElementById('status')!.innerHTML = `<span style="color:red">Network/Client Error: ${e.message}</span>`;
+      }
       showStatus(`❌ ${e.message}`, 'error');
     }
   };
