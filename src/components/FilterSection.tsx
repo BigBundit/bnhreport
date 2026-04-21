@@ -60,7 +60,7 @@ export function FilterSection({ filters, setFilters, onApply, availableCountries
             <div className="h-6 w-px bg-slate-200 hidden sm:block"></div>
             
             <div className="flex gap-1.5">
-              {[ { l: '30d', v: 30 }, { l: '60d', v: 60 }, { l: '90d', v: 90 }, { l: '1y', v: 365 }, { l: '2y', v: 730 } ].map(q => (
+              {[ { l: '30d', v: 30 }, { l: '60d', v: 60 }, { l: '90d', v: 90 }, { l: '1y', v: 365 } ].map(q => (
                 <button 
                   key={q.l}
                   onClick={() => {
