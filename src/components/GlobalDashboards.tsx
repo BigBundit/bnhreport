@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { DataRow, PageQuery } from '../types';
 import { formatNumber, formatPercent, exportToCSV, exportToPNG } from '../utils';
 import { isAIOQuery } from '../utils';
+import { countryIso3Map } from '../countries';
 import { Globe, Key, Bot, Users, Plane, MapPin, TrendingUp, TrendingDown, BarChart2, FileSpreadsheet, Image as ImageIcon } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
@@ -112,7 +113,15 @@ export function GlobalDashboards({ data, prevData = [], pageQueries, countryFilt
             const isThai = c === 'th' || c === 'thailand' || c === 'ไทย' || c === 'tha';
             if (countryFilter === 'th' && !isThai) return;
             if (countryFilter === 'intl' && isThai) return;
-            if (countryFilter !== 'th' && countryFilter !== 'intl' && c !== countryFilter) return;
+            if (countryFilter !== 'th' && countryFilter !== 'intl') {
+              const filterLower = countryFilter.toLowerCase();
+              const mappedIso3 = countryIso3Map[filterLower];
+              if (mappedIso3) {
+                if (c !== mappedIso3 && c !== filterLower) return;
+              } else {
+                if (c !== filterLower) return;
+              }
+            }
           }
 
           if (isAIOQuery(q.query)) {
