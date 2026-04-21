@@ -318,33 +318,15 @@ export default function App() {
 
   const availableCountries = useMemo(() => {
     const set = new Set<string>();
-    const { dateFrom, dateTo } = filters;
     
-    const countryMetrics = new Map<string, { users: number, views: number, impressions: number, clicks: number }>();
-
     allData.forEach(r => {
-      if (dateFrom && r.date < dateFrom) return;
-      if (dateTo && r.date > dateTo) return;
-      if (!matchPageList(r.page)) return;
-      
       if (r.country && r.country !== 'Unknown' && r.country !== '(not set)') {
-        const current = countryMetrics.get(r.country) || { users: 0, views: 0, impressions: 0, clicks: 0 };
-        current.users += r.users;
-        current.views += r.views;
-        current.impressions += r.impressions;
-        current.clicks += r.clicks;
-        countryMetrics.set(r.country, current);
+        set.add(r.country);
       }
     });
 
-    for (const [country, metrics] of countryMetrics.entries()) {
-      if (metrics.users > 0 || metrics.views > 0 || metrics.impressions > 0 || metrics.clicks > 0) {
-        set.add(country);
-      }
-    }
-
     return Array.from(set).sort();
-  }, [allData, filters.dateFrom, filters.dateTo, matchPageList]);
+  }, [allData]);
 
   useEffect(() => {
     const today = new Date();
