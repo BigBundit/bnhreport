@@ -273,8 +273,12 @@ export default function App() {
       setLoadingMsg(`กำลังโหลด Keywords จาก Search Console...`);
       showStatus(`⏳ กำลังโหลด Keywords จาก Search Console...`, 'info');
       
+      const kwStart = new Date(today);
+      kwStart.setMonth(kwStart.getMonth() - 6);
+      const kwSDate = kwStart.toISOString().split('T')[0];
+
       const gscKwData = await proxyFetch('GSC-Keywords', `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`, 'POST', {
-        startDate: sDate, endDate: eDate,
+        startDate: kwSDate, endDate: eDate,
         dimensions: ['country', 'page', 'query'], rowLimit: 25000
       });
 
