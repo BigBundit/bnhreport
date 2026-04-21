@@ -195,7 +195,7 @@ export default function App() {
     try {
       const today = new Date();
       const start = new Date(today);
-      start.setMonth(start.getMonth() - 6);
+      start.setFullYear(start.getFullYear() - 2);
       const sDate = start.toISOString().split('T')[0];
       const eDate = today.toISOString().split('T')[0];
 

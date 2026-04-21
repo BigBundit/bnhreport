@@ -40,20 +40,38 @@ export function FilterSection({ filters, setFilters, onApply, availableCountries
 
         <div className="flex flex-col gap-1.5">
           <label className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">Date Range</label>
-          <div className="flex gap-2 items-center">
-            <input 
-              type="date" 
-              className="w-[140px] px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] text-slate-800 outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 cursor-pointer transition-all"
-              value={filters.dateFrom}
-              onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
-            />
-            <span className="text-slate-400 font-medium">–</span>
-            <input 
-              type="date" 
-              className="w-[140px] px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] text-slate-800 outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 cursor-pointer transition-all"
-              value={filters.dateTo}
-              onChange={e => setFilters(f => ({ ...f, dateTo: e.target.value }))}
-            />
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2 items-center">
+              <input 
+                type="date" 
+                className="w-[140px] px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] text-slate-800 outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 cursor-pointer transition-all"
+                value={filters.dateFrom}
+                onChange={e => setFilters(f => ({ ...f, dateFrom: e.target.value }))}
+              />
+              <span className="text-slate-400 font-medium">–</span>
+              <input 
+                type="date" 
+                className="w-[140px] px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] text-slate-800 outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 cursor-pointer transition-all"
+                value={filters.dateTo}
+                onChange={e => setFilters(f => ({ ...f, dateTo: e.target.value }))}
+              />
+            </div>
+            <div className="flex gap-1.5">
+              {[ { l: '30d', v: 30 }, { l: '60d', v: 60 }, { l: '90d', v: 90 }, { l: '1y', v: 365 }, { l: '2y', v: 730 } ].map(q => (
+                <button 
+                  key={q.l}
+                  onClick={() => {
+                    const dFrom = new Date(); dFrom.setDate(dFrom.getDate() - q.v);
+                    const dTo = new Date();
+                    setFilters(f => ({ ...f, dateFrom: dFrom.toISOString().split('T')[0], dateTo: dTo.toISOString().split('T')[0] }));
+                    setTimeout(onApply, 0);
+                  }}
+                  className="px-2.5 py-1 bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border border-transparent hover:border-indigo-200 rounded text-[10px] font-bold transition-all shadow-sm"
+                >
+                  {q.l}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
