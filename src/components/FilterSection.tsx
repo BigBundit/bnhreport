@@ -40,7 +40,7 @@ export function FilterSection({ filters, setFilters, onApply, availableCountries
 
         <div className="flex flex-col gap-1.5">
           <label className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">Date Range</label>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="flex gap-2 items-center">
               <input 
                 type="date" 
@@ -56,6 +56,9 @@ export function FilterSection({ filters, setFilters, onApply, availableCountries
                 onChange={e => setFilters(f => ({ ...f, dateTo: e.target.value }))}
               />
             </div>
+            
+            <div className="h-6 w-px bg-slate-200 hidden sm:block"></div>
+            
             <div className="flex gap-1.5">
               {[ { l: '30d', v: 30 }, { l: '60d', v: 60 }, { l: '90d', v: 90 }, { l: '1y', v: 365 }, { l: '2y', v: 730 } ].map(q => (
                 <button 
@@ -66,7 +69,7 @@ export function FilterSection({ filters, setFilters, onApply, availableCountries
                     setFilters(f => ({ ...f, dateFrom: dFrom.toISOString().split('T')[0], dateTo: dTo.toISOString().split('T')[0] }));
                     setTimeout(onApply, 0);
                   }}
-                  className="px-2.5 py-1 bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 border border-transparent hover:border-indigo-200 rounded text-[10px] font-bold transition-all shadow-sm"
+                  className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-indigo-50 hover:border-indigo-200 text-slate-600 hover:text-indigo-600 rounded-lg text-[11px] font-bold transition-all shadow-sm"
                 >
                   {q.l}
                 </button>

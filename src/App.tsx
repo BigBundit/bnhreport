@@ -228,12 +228,16 @@ export default function App() {
         console.warn('Failed to fetch realtime data', err);
       }
 
+      const gscStart = new Date(today);
+      gscStart.setMonth(gscStart.getMonth() - 16);
+      const sDateGSC = start < gscStart ? gscStart.toISOString().split('T')[0] : sDate;
+
       setLoadingProgress(40);
       setLoadingMsg(`กำลังโหลด Search Console... (GA4: ${gaRows.length.toLocaleString()} rows)`);
       showStatus(`⏳ กำลังโหลด Search Console... (GA4: ${gaRows.length.toLocaleString()} rows)`, 'info');
 
       const gscData = await proxyFetch('GSC', `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`, 'POST', {
-        startDate: sDate, endDate: eDate,
+        startDate: sDateGSC, endDate: eDate,
         dimensions: ['date', 'page', 'country'], rowLimit: 25000
       });
 
@@ -275,7 +279,7 @@ export default function App() {
       showStatus(`⏳ กำลังโหลด Keywords จาก Search Console...`, 'info');
       
       const gscKwData = await proxyFetch('GSC-Keywords', `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`, 'POST', {
-        startDate: sDate, endDate: eDate,
+        startDate: sDateGSC, endDate: eDate,
         dimensions: ['country', 'page', 'query'], rowLimit: 25000
       });
 
