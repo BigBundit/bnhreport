@@ -60,3 +60,47 @@ export function isAIOQuery(query: string): boolean {
   const aioKeywords = ['อะไร', 'ไหม', 'ทำไม', 'วิธี', 'คือ', 'ใคร', 'เท่าไหร่', 'how', 'what', 'why', 'when', 'where', 'who', 'guide', 'best', 'ดีไหม', 'pantip', 'รีวิว', 'อาการ', 'รักษา', 'สาเหตุ'];
   return aioKeywords.some(kw => q.includes(kw));
 }
+
+export function exportToCSV(filename: string, headers: string[], data: any[][]) {
+  const csvContent = [
+    headers.join(','),
+    ...data.map(row => row.map(cell => {
+      if (cell == null) return '';
+      const cellStr = String(cell).replace(/"/g, '""');
+      return `"${cellStr}"`;
+    }).join(','))
+  ].join('\n');
+
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('url' in window ? 'a' : 'a');
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${filename}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
+export async function exportToPNG(filename: string, elementId: string) {
+  try {
+    const html2canvas = (await import('html2canvas')).default;
+    const element = document.getElementById(elementId);
+    if (!element) {
+      console.error('Element not found:', elementId);
+      return;
+    }
+    const canvas = await html2canvas(element, { backgroundColor: '#ffffff', scale: 2 });
+    const imgData = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = `${filename}.png`;
+    link.href = imgData;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } catch (err) {
+    console.error('Failed to export PNG', err);
+  }
+}

@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { DataRow, PageQuery } from '../types';
-import { formatNumber, formatPercent } from '../utils';
+import { formatNumber, formatPercent, exportToCSV, exportToPNG } from '../utils';
 import { isAIOQuery } from '../utils';
-import { Globe, Key, Bot, Users, Plane, MapPin, TrendingUp, TrendingDown, BarChart2 } from 'lucide-react';
+import { Globe, Key, Bot, Users, Plane, MapPin, TrendingUp, TrendingDown, BarChart2, FileSpreadsheet, Image as ImageIcon } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface GlobalDashboardsProps {
@@ -222,12 +222,20 @@ export function GlobalDashboards({ data, prevData = [], pageQueries, countryFilt
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
         {/* Country Dashboard */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 flex flex-col h-[340px]">
+        <div id="dashboard-countries" className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 flex flex-col h-[340px]">
           <div className="flex justify-between items-center mb-4 shrink-0">
             <h3 className="text-slate-900 font-semibold text-[15px] flex items-center gap-2">
               <Globe size={18} className="text-emerald-600" /> Top Countries
             </h3>
-            <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400 bg-slate-100 px-2 py-1 rounded-md">GA4 + GSC</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400 bg-slate-100 px-2 py-1 rounded-md hidden sm:inline-block">GA4 + GSC</span>
+              <button onClick={() => exportToCSV('top-countries', ['Country', 'Views', '% Total'], topCountries.map(c => [c.country, c.views, formatPercent(c.viewPercent)]))} className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded" title="Export CSV">
+                <FileSpreadsheet size={16} />
+              </button>
+              <button onClick={() => exportToPNG('top-countries', 'dashboard-countries')} className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded" title="Export PNG">
+                <ImageIcon size={16} />
+              </button>
+            </div>
           </div>
           <div className="overflow-y-auto flex-1 pr-2 custom-scrollbar">
             <table className="w-full text-left text-[13px]">
@@ -254,12 +262,20 @@ export function GlobalDashboards({ data, prevData = [], pageQueries, countryFilt
         </div>
 
         {/* Keyword Dashboard */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 flex flex-col h-[340px]">
+        <div id="dashboard-keywords" className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 flex flex-col h-[340px]">
           <div className="flex justify-between items-center mb-4 shrink-0">
             <h3 className="text-slate-900 font-semibold text-[15px] flex items-center gap-2">
               <Key size={18} className="text-indigo-600" /> Top Keywords
             </h3>
-            <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400 bg-slate-100 px-2 py-1 rounded-md">GSC</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400 bg-slate-100 px-2 py-1 rounded-md hidden sm:inline-block">GSC</span>
+              <button onClick={() => exportToCSV('top-keywords', ['Keyword', 'Clicks', 'Impressions'], topKeywords.map(k => [k.query, k.clicks, k.impressions]))} className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded" title="Export CSV">
+                <FileSpreadsheet size={16} />
+              </button>
+              <button onClick={() => exportToPNG('top-keywords', 'dashboard-keywords')} className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded" title="Export PNG">
+                <ImageIcon size={16} />
+              </button>
+            </div>
           </div>
           <div className="overflow-y-auto flex-1 pr-2 custom-scrollbar">
             <table className="w-full text-left text-[13px]">
@@ -286,12 +302,20 @@ export function GlobalDashboards({ data, prevData = [], pageQueries, countryFilt
         </div>
 
         {/* AIO Dashboard */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 flex flex-col h-[340px]">
+        <div id="dashboard-aio" className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/60 flex flex-col h-[340px]">
           <div className="flex justify-between items-center mb-4 shrink-0">
             <h3 className="text-slate-900 font-semibold text-[15px] flex items-center gap-2">
               <Bot size={18} className="text-purple-600" /> Top AIO Queries
             </h3>
-            <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400 bg-slate-100 px-2 py-1 rounded-md">GSC</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold tracking-wider uppercase text-slate-400 bg-slate-100 px-2 py-1 rounded-md hidden sm:inline-block">GSC</span>
+              <button onClick={() => exportToCSV('top-aio-queries', ['AIO Query', 'Clicks', 'Impressions'], topAIO.map(k => [k.query, k.clicks, k.impressions]))} className="p-1 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded" title="Export CSV">
+                <FileSpreadsheet size={16} />
+              </button>
+              <button onClick={() => exportToPNG('top-aio-queries', 'dashboard-aio')} className="p-1 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded" title="Export PNG">
+                <ImageIcon size={16} />
+              </button>
+            </div>
           </div>
           <div className="overflow-y-auto flex-1 pr-2 custom-scrollbar">
             <table className="w-full text-left text-[13px]">
