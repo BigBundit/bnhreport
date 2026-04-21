@@ -84,9 +84,10 @@ export function exportToCSV(filename: string, headers: string[], data: any[][]) 
   }
 }
 
+import html2canvas from 'html2canvas';
+
 export async function exportToPNG(filename: string, elementId: string) {
   try {
-    const html2canvas = (await import('html2canvas')).default;
     const element = document.getElementById(elementId);
     if (!element) {
       console.error('Element not found:', elementId);
@@ -102,5 +103,6 @@ export async function exportToPNG(filename: string, elementId: string) {
     document.body.removeChild(link);
   } catch (err) {
     console.error('Failed to export PNG', err);
+    alert('Failed to export PNG: ' + (err as any).message);
   }
 }
