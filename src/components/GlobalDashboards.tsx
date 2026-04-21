@@ -86,8 +86,7 @@ export function GlobalDashboards({ data, prevData = [], pageQueries, countryFilt
         ...metrics,
         viewPercent: audienceStats.totalViews > 0 ? metrics.views / audienceStats.totalViews : 0
       }))
-      .sort((a, b) => b.views - a.views)
-      .slice(0, 15);
+      .sort((a, b) => b.views - a.views);
   }, [data, audienceStats.totalViews]);
 
   // 3. Top Keywords & AIO
@@ -130,8 +129,8 @@ export function GlobalDashboards({ data, prevData = [], pageQueries, countryFilt
     });
 
     return {
-      topKeywords: Array.from(kwMap.entries()).map(([q, m]) => ({ query: q, ...m })).sort((a, b) => b.clicks - a.clicks).slice(0, 15),
-      topAIO: Array.from(aioMap.entries()).map(([q, m]) => ({ query: q, ...m })).sort((a, b) => b.clicks - a.clicks).slice(0, 15)
+      topKeywords: Array.from(kwMap.entries()).map(([q, m]) => ({ query: q, ...m })).sort((a, b) => b.clicks - a.clicks).slice(0, 300),
+      topAIO: Array.from(aioMap.entries()).map(([q, m]) => ({ query: q, ...m })).sort((a, b) => b.clicks - a.clicks).slice(0, 300)
     };
   }, [data, pageQueries, countryFilter]);
 
