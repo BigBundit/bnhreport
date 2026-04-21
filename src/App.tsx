@@ -203,7 +203,8 @@ export default function App() {
         dateRanges: [{ startDate: sDate, endDate: eDate }],
         dimensions: [{ name: 'date' }, { name: 'pagePath' }, { name: 'country' }],
         metrics: [{ name: 'activeUsers' }, { name: 'sessions' }, { name: 'screenPageViews' }, { name: 'averageSessionDuration' }, { name: 'engagementRate' }, { name: 'keyEvents' }],
-        limit: 50000
+        orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
+        limit: 200000
       });
 
       const gaRows = (gaData.rows || []).map((r: any) => {
