@@ -69,28 +69,28 @@ export function AIInsights({ data, pageQueries, geminiKey }: AIInsightsProps) {
       // Handle bold text inline
       const bolded = line.split(/(\*\*.*?\*\*)/g).map((part, idx) => {
         if (part.startsWith('**') && part.endsWith('**')) {
-          return <strong key={idx} className="font-semibold text-slate-900 dark:text-white">{part.slice(2, -2)}</strong>;
+          return <strong key={idx} className="font-semibold text-slate-900">{part.slice(2, -2)}</strong>;
         }
         return part;
       });
       
-      return line.trim() ? <p key={i} className="mb-2 text-slate-600 dark:text-slate-300 leading-relaxed">{bolded}</p> : null;
+      return line.trim() ? <p key={i} className="mb-2 text-slate-600 leading-relaxed">{bolded}</p> : null;
     });
   };
 
   return (
-    <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-slate-800 dark:to-indigo-950/30 rounded-2xl p-6 shadow-sm border border-indigo-100/50 dark:border-indigo-500/20 mb-6 relative overflow-hidden transition-all">
+    <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-6 shadow-sm border border-indigo-100/50 mb-6 relative overflow-hidden transition-all">
       <div className="absolute top-0 right-0 p-4 opacity-10">
         <Sparkles size={100} />
       </div>
       
       <div className="flex items-center justify-between relative z-10">
         <div>
-          <h2 className="text-[16px] text-indigo-900 dark:text-indigo-100 font-bold flex items-center gap-2">
-            <Sparkles size={20} className="text-indigo-600 dark:text-indigo-400" /> 
+          <h2 className="text-[16px] text-indigo-900 font-bold flex items-center gap-2">
+            <Sparkles size={20} className="text-indigo-600" /> 
             AI Insights: AIO Optimization
           </h2>
-          <p className="text-[12px] text-indigo-600/70 dark:text-indigo-300/70 mt-1">วิเคราะห์ศักยภาพของเว็บไซต์สำหรับการตอบคำถาม AI (AIO)</p>
+          <p className="text-[12px] text-indigo-600/70 mt-1">วิเคราะห์ศักยภาพของเว็บไซต์สำหรับการตอบคำถาม AI (AIO)</p>
         </div>
         
         <div className="flex gap-2">
@@ -105,7 +105,7 @@ export function AIInsights({ data, pageQueries, geminiKey }: AIInsightsProps) {
           {(insight || error) && (
             <button 
               onClick={() => setIsOpen(!isOpen)}
-              className="p-2 bg-white/50 hover:bg-white/80 dark:bg-slate-800/50 dark:hover:bg-slate-800 rounded-xl text-indigo-600 dark:text-indigo-400 transition-colors"
+              className="p-2 bg-white/50 hover:bg-white/80 rounded-xl text-indigo-600 transition-colors"
             >
               {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
             </button>
@@ -114,25 +114,25 @@ export function AIInsights({ data, pageQueries, geminiKey }: AIInsightsProps) {
       </div>
 
       {isOpen && (
-        <div className="mt-5 relative z-10 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-xl p-5 border border-white/50 dark:border-slate-700/50">
+        <div className="mt-5 relative z-10 bg-white/60 backdrop-blur-sm rounded-xl p-5 border border-white/50">
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-8 text-indigo-600 dark:text-indigo-400">
+            <div className="flex flex-col items-center justify-center py-8 text-indigo-600">
               <Loader2 size={32} className="animate-spin mb-3" />
               <p className="text-[13px] font-medium animate-pulse">กำลังให้ Gemini วิเคราะห์ข้อมูล AIO...</p>
             </div>
           ) : error ? (
-            <div className="text-red-600 dark:text-red-400 text-[13px] font-medium flex flex-col items-center py-4">
+            <div className="text-red-600 text-[13px] font-medium flex flex-col items-center py-4">
               <span className="text-2xl mb-2">⚠️</span>
               {error}
-              <button onClick={generateInsight} className="mt-3 px-3 py-1.5 bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 rounded-lg transition-colors">ลองอีกครั้ง</button>
+              <button onClick={generateInsight} className="mt-3 px-3 py-1.5 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">ลองอีกครั้ง</button>
             </div>
           ) : insight ? (
-            <div className="text-[13px] prose-sm dark:prose-invert max-w-none">
+            <div className="text-[13px] prose-sm max-w-none">
               {formatText(insight)}
               <div className="mt-6 flex justify-end">
                 <button 
                   onClick={generateInsight}
-                  className="text-[11px] font-medium text-indigo-500 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center gap-1 transition-colors"
+                  className="text-[11px] font-medium text-indigo-500 hover:text-indigo-700 flex items-center gap-1 transition-colors"
                 >
                   <Sparkles size={12} /> Regenerate
                 </button>

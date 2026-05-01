@@ -90,8 +90,8 @@ export function ChartsSection({ data, deviceData = [] }: ChartsSectionProps) {
             </ResponsiveContainer>
           </div>
         </div>
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-4.5 shadow-sm">
-          <h3 className="text-[13px] text-indigo-900 dark:text-indigo-100 font-bold mb-3 flex items-center gap-1.5">
+        <div className="bg-white rounded-xl p-4.5 shadow-sm">
+          <h3 className="text-[13px] text-indigo-900 font-bold mb-3 flex items-center gap-1.5">
             📱 Devices <span className="bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded text-[9px] font-bold">GA4</span>
           </h3>
           <div className="h-[210px] flex items-center justify-center">
