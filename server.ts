@@ -5,6 +5,7 @@ import axios from 'axios';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { createClient } from '@libsql/client';
+import crypto from 'crypto';
 
 dotenv.config();
 
@@ -48,21 +49,24 @@ async function initDb() {
 }
 initDb();
 
-async function saveTokens(tokens: any) {
+async function saveTokens(sessionId: string, tokens: any) {
   try {
     await db.execute({
-      sql: `INSERT INTO oauth_tokens (id, tokens) VALUES ('default', ?)
+      sql: `INSERT INTO oauth_tokens (id, tokens) VALUES (?, ?)
             ON CONFLICT(id) DO UPDATE SET tokens = excluded.tokens`,
-      args: [JSON.stringify(tokens)]
+      args: [sessionId, JSON.stringify(tokens)]
     });
   } catch (e) {
     console.error('Error saving tokens to Turso:', e);
   }
 }
 
-async function getTokens() {
+async function getTokens(sessionId: string) {
   try {
-    const result = await db.execute("SELECT tokens FROM oauth_tokens WHERE id = 'default'");
+    const result = await db.execute({
+      sql: "SELECT tokens FROM oauth_tokens WHERE id = ?",
+      args: [sessionId]
+    });
     if (result.rows.length > 0) {
       return JSON.parse(result.rows[0].tokens as string);
     }
@@ -130,7 +134,15 @@ app.get('/auth/callback', async (req, res) => {
     });
 
     const tokens = response.data;
-    await saveTokens(tokens);
+    const sessionId = crypto.randomUUID();
+    await saveTokens(sessionId, tokens);
+
+    res.cookie('session_id', sessionId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production' || !!process.env.VERCEL,
+      sameSite: 'lax',
+      maxAge: 365 * 24 * 60 * 60 * 1000 // 1 year
+    });
 
     res.send(`
       <html>
@@ -154,21 +166,37 @@ app.get('/auth/callback', async (req, res) => {
 });
 
 app.get('/api/auth/status', async (req, res) => {
-  const tokens = await getTokens();
+  const sessionId = req.cookies.session_id;
+  if (!sessionId) {
+    return res.json({ authenticated: false });
+  }
+  const tokens = await getTokens(sessionId);
   res.json({ authenticated: !!tokens?.refresh_token });
 });
 
 app.post('/api/auth/logout', async (req, res) => {
-  try {
-    await db.execute("DELETE FROM oauth_tokens WHERE id = 'default'");
-  } catch (e) {
-    console.error('Error deleting tokens from Turso:', e);
+  const sessionId = req.cookies.session_id;
+  if (sessionId) {
+    try {
+      await db.execute({
+        sql: "DELETE FROM oauth_tokens WHERE id = ?",
+        args: [sessionId]
+      });
+    } catch (e) {
+      console.error('Error deleting tokens from Turso:', e);
+    }
   }
+  res.clearCookie('session_id');
   res.json({ success: true });
 });
 
-async function getAccessToken() {
-  const tokens = await getTokens();
+async function getAccessToken(req: express.Request) {
+  const sessionId = req.cookies.session_id;
+  if (!sessionId) {
+    throw new Error('No session ID');
+  }
+
+  const tokens = await getTokens(sessionId);
   if (!tokens || !tokens.refresh_token) {
     throw new Error('No refresh token available');
   }
@@ -184,7 +212,7 @@ async function getAccessToken() {
     });
 
     const newTokens = { ...tokens, ...response.data };
-    await saveTokens(newTokens);
+    await saveTokens(sessionId, newTokens);
     return newTokens.access_token;
   } catch (error: any) {
     console.error('Error refreshing token:', error.response?.data || error.message);
@@ -206,7 +234,7 @@ app.post('/api/fetch-data/:service', async (req, res) => {
 
     let accessToken;
     try {
-      accessToken = await getAccessToken();
+      accessToken = await getAccessToken(req);
     } catch (e: any) {
       console.error('[Proxy] Auth failed:', e.message);
       return res.status(401).json({ error: 'Authentication failed', details: e.message });
@@ -245,6 +273,47 @@ app.post('/api/fetch-data/:service', async (req, res) => {
   } catch (fatalError: any) {
     console.error('[Proxy] Fatal Error:', fatalError);
     return res.status(500).json({ error: 'Internal Server Error', details: fatalError.message });
+  }
+});
+
+// AI Insights endpoint
+app.post('/api/insights', async (req, res) => {
+  try {
+    const { geminiKey, data } = req.body;
+    if (!geminiKey) {
+      return res.status(400).json({ error: 'Missing Gemini API Key' });
+    }
+
+    const prompt = `
+คุณคือผู้เชี่ยวชาญด้าน SEO และ Data Analytics ของโรงพยาบาล BNH
+นี่คือข้อมูลประสิทธิภาพของเว็บไซต์ โดยเน้นที่คำค้นหาประเภท AIO (Artificial Intelligence Optimization - คำถามที่ AI มักใช้ตอบ)
+
+ข้อมูล (Top 10 Pages & AIO Keywords):
+${JSON.stringify(data, null, 2)}
+
+โปรดวิเคราะห์ข้อมูลนี้และเขียนสรุปเชิงลึกเกี่ยวกับประสิทธิภาพของคีย์เวิร์ด AIO
+1. ภาพรวมการเข้าถึง (Impressions/Clicks) จาก AIO keywords
+2. หน้าเว็บไหนที่ตอบโจทย์ AIO ได้ดีที่สุด
+3. โอกาสในการพัฒนา (Opportunity) เช่น หน้าที่มี Impression สูงแต่ Click ต่ำ ควรปรับเนื้อหาอย่างไรให้ AI จับไปตอบได้ดีขึ้น
+
+ตอบเป็นภาษาไทย รูปแบบ Markdown กระชับ อ่านง่าย เป็นมืออาชีพ ไม่ต้องเกริ่นนำ
+`;
+
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+      {
+        contents: [{ parts: [{ text: prompt }] }]
+      },
+      {
+        headers: { 'Content-Type': 'application/json' }
+      }
+    );
+
+    const text = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
+    res.json({ text });
+  } catch (error: any) {
+    console.error('Gemini API Error:', error.response?.data || error.message);
+    res.status(500).json({ error: error.response?.data?.error?.message || error.message });
   }
 });
 

@@ -11,12 +11,15 @@ interface AuthSectionProps {
   onLogout: () => void;
   onLoadData: () => void;
   onShowTokenHelp: () => void;
+  geminiKey: string;
+  setGeminiKey: (v: string) => void;
 }
 
 export function AuthSection({
   propId, setPropId, siteUrl, setSiteUrl,
   isAuthenticated, onLogin, onLogout,
-  onLoadData, onShowTokenHelp
+  onLoadData, onShowTokenHelp,
+  geminiKey, setGeminiKey
 }: AuthSectionProps) {
   return (
     <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 mb-6">
@@ -31,25 +34,57 @@ export function AuthSection({
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <div>
-          <label className="text-[11px] text-slate-500 font-semibold block mb-1.5 uppercase tracking-wider">GA4 Property ID</label>
-          <input 
-            type="text" 
-            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] text-slate-800 outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
-            value={propId} 
-            onChange={e => setPropId(e.target.value)} 
-          />
-          <div className="text-[10px] text-slate-400 mt-1.5">Admin → Property Settings → Property ID</div>
+        <div className="flex flex-col gap-4">
+          <div>
+            <label className="text-[11px] text-slate-500 font-semibold block mb-1.5 uppercase tracking-wider">GA4 Property ID</label>
+            <input 
+              type="text" 
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] text-slate-800 outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200"
+              value={propId} 
+              onChange={e => setPropId(e.target.value)} 
+            />
+            <div className="text-[10px] text-slate-400 mt-1.5">Admin → Property Settings → Property ID</div>
+          </div>
+          <div>
+            <label className="text-[11px] text-slate-500 font-semibold block mb-1.5 uppercase tracking-wider">Gemini API Key (AI Insights)</label>
+            <input 
+              type="password" 
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] text-slate-800 outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200"
+              value={geminiKey} 
+              onChange={e => setGeminiKey(e.target.value)} 
+              placeholder="AIzaSy..."
+            />
+          </div>
         </div>
         <div>
-          <label className="text-[11px] text-slate-500 font-semibold block mb-1.5 uppercase tracking-wider">GSC Site URL</label>
+          <label className="text-[11px] text-slate-500 font-semibold block mb-1.5 uppercase tracking-wider">GSC Site URL(s)</label>
+          <div className="flex flex-col gap-1.5 mb-2 border border-slate-200/60 rounded-xl p-2.5 bg-slate-50/50">
+            <label className="flex items-center gap-2 cursor-pointer text-[12px] text-slate-700">
+              <input type="checkbox" className="rounded text-indigo-600 focus:ring-indigo-600" checked={siteUrl.includes('https://www.bnhhospital.com/')} onChange={(e) => {
+                 let urls = siteUrl.split(',').map(u=>u.trim()).filter(Boolean);
+                 if (e.target.checked) urls.push('https://www.bnhhospital.com/');
+                 else urls = urls.filter(u => u !== 'https://www.bnhhospital.com/');
+                 setSiteUrl(Array.from(new Set(urls)).join(', '));
+              }} />
+              BNH (www.bnhhospital.com)
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer text-[12px] text-slate-700">
+              <input type="checkbox" className="rounded text-indigo-600 focus:ring-indigo-600" checked={siteUrl.includes('https://mbrace.bnhhospital.com/')} onChange={(e) => {
+                 let urls = siteUrl.split(',').map(u=>u.trim()).filter(Boolean);
+                 if (e.target.checked) urls.push('https://mbrace.bnhhospital.com/');
+                 else urls = urls.filter(u => u !== 'https://mbrace.bnhhospital.com/');
+                 setSiteUrl(Array.from(new Set(urls)).join(', '));
+              }} />
+              MBrace (mbrace.bnhhospital.com)
+            </label>
+          </div>
           <input 
             type="text" 
-            className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[13px] text-slate-800 outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
+            className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] text-slate-600 outline-none focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-mono"
             value={siteUrl} 
             onChange={e => setSiteUrl(e.target.value)} 
+            placeholder="Comma-separated URLs"
           />
-          <div className="text-[10px] text-slate-400 mt-1.5">URL verified in Search Console</div>
         </div>
         <div>
           <label className="text-[11px] text-slate-500 font-semibold block mb-1.5 uppercase tracking-wider">Authentication</label>

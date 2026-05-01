@@ -83,9 +83,9 @@ export function PageDetailModal({ path, isKeyword, pageListActive, data, pageQue
   const chartData = useMemo(() => {
     const byD = new Map<string, any>();
     rows.forEach(r => {
-      if (!byD.has(r.date)) byD.set(r.date, { date: r.date, u: 0, s: 0, v: 0, et: 0, er: 0, ke: 0, i: 0, c: 0, ct: 0, pos: 0, _ec: 0, _pc: 0, _erc: 0 });
+      if (!byD.has(r.date)) byD.set(r.date, { date: r.date, u: 0, s: 0, v: 0, et: 0, er: 0, i: 0, c: 0, ct: 0, pos: 0, _ec: 0, _pc: 0, _erc: 0 });
       const v = byD.get(r.date)!;
-      v.u += r.users; v.s += r.sessions; v.v += r.views; v.ke += r.keyEvents; v.i += r.impressions; v.c += r.clicks;
+      v.u += r.users; v.s += r.sessions; v.v += r.views; v.i += r.impressions; v.c += r.clicks;
       if (r.engTime > 0) { v.et += r.engTime; v._ec++; }
       if (r.position > 0) { v.pos += r.position; v._pc++; }
       if (r.engRate > 0) { v.er += r.engRate; v._erc++; }
@@ -97,6 +97,29 @@ export function PageDetailModal({ path, isKeyword, pageListActive, data, pageQue
       if (v.i > 0) v.ct = v.c / v.i;
       return v;
     }).sort((a, b) => a.date.localeCompare(b.date));
+  }, [rows]);
+
+  const trafficData = useMemo(() => {
+    const map = new Map<string, any>();
+    rows.forEach(r => {
+      if (!r.source && !r.medium && !r.campaign) return;
+      const key = `${r.source || '(not set)'} / ${r.medium || '(not set)'} / ${r.campaign || '(not set)'}`;
+      if (!map.has(key)) {
+        map.set(key, { key, users: 0, views: 0, sessions: 0, engTime: 0, _ec: 0 });
+      }
+      const v = map.get(key)!;
+      v.users += r.users;
+      v.views += r.views;
+      v.sessions += r.sessions;
+      if (r.engTime > 0) { v.engTime += r.engTime; v._ec++; }
+    });
+    return Array.from(map.values())
+      .map(v => {
+        if (v._ec > 0) v.engTime /= v._ec;
+        return v;
+      })
+      .filter(v => v.users > 0 || v.views > 0 || v.sessions > 0)
+      .sort((a, b) => b.users - a.users);
   }, [rows]);
 
   const { keywords, aioQueries } = useMemo(() => {
@@ -192,6 +215,38 @@ export function PageDetailModal({ path, isKeyword, pageListActive, data, pageQue
               <Line yAxisId="right" type="monotone" dataKey="c" name="Clicks" stroke="#1565c0" strokeWidth={2} dot={{ r: 2 }} activeDot={{ r: 4 }} />
             </LineChart>
           </ResponsiveContainer>
+        </div>
+
+        <div className="overflow-y-auto border border-slate-100 rounded-lg custom-scrollbar min-h-[160px] max-h-[240px] mb-5 shrink-0">
+          <div className="bg-emerald-900 text-white p-2 font-bold text-[10px] uppercase tracking-wide sticky top-0 z-10 flex justify-between">
+            <span>Traffic source | Session source / medium / campaign</span>
+            <span className="bg-emerald-800 text-emerald-100 px-1.5 rounded">GA4</span>
+          </div>
+          <table className="w-full text-left border-collapse text-xs">
+            <thead className="bg-slate-100 text-slate-600 sticky top-[32px] z-10">
+              <tr>
+                <th className="p-2 font-semibold text-[10px]">Source / Medium / Campaign</th>
+                <th className="p-2 font-semibold text-[10px] text-right">Active Users</th>
+                <th className="p-2 font-semibold text-[10px] text-right">Views</th>
+                <th className="p-2 font-semibold text-[10px] text-right">Sessions</th>
+                <th className="p-2 font-semibold text-[10px] text-right">Avg. Eng. Time / User</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trafficData.map((d, i) => (
+                <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
+                  <td className="p-1.5 whitespace-nowrap font-medium text-slate-700">{d.key}</td>
+                  <td className="p-1.5 text-right tabular-nums text-emerald-700 font-medium">{formatNumber(d.users)}</td>
+                  <td className="p-1.5 text-right tabular-nums">{formatNumber(d.views)}</td>
+                  <td className="p-1.5 text-right tabular-nums">{formatNumber(d.sessions)}</td>
+                  <td className="p-1.5 text-right tabular-nums">{formatTime(d.engTime)}</td>
+                </tr>
+              ))}
+              {trafficData.length === 0 && (
+                <tr><td colSpan={5} className="p-4 text-center text-slate-400 text-[11px]">No Traffic Data</td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-5 min-h-0">

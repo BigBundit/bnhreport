@@ -7,10 +7,11 @@ interface SummaryCardsProps {
   data: DataRow[];
   prevData?: DataRow[];
   activeUsers?: number | null;
+  compareMode?: 'prev_period' | 'prev_year' | 'none';
   onRealtimeClick?: () => void;
 }
 
-export function SummaryCards({ data, prevData = [], activeUsers, onRealtimeClick }: SummaryCardsProps) {
+export function SummaryCards({ data, prevData = [], activeUsers, compareMode = 'prev_period', onRealtimeClick }: SummaryCardsProps) {
   let u = 0, s = 0, v = 0, i = 0, c = 0;
   data.forEach(r => { u += r.users; s += r.sessions; v += r.views; i += r.impressions; c += r.clicks; });
 
@@ -64,10 +65,13 @@ export function SummaryCards({ data, prevData = [], activeUsers, onRealtimeClick
                 <div className="text-2xl font-bold text-slate-900 tracking-tight">
                   {typeof card.value === 'number' ? formatNumber(card.value) : card.value}
                 </div>
-                {trend && prevData.length > 0 && (
-                  <div className={`flex items-center text-[11px] font-semibold mb-1 ${trend.isPos ? 'text-emerald-600' : 'text-red-500'}`}>
+                {trend && prevData.length > 0 && compareMode !== 'none' && (
+                  <div className={`flex items-center text-[11px] font-semibold mb-1 ${trend.isPos ? 'text-emerald-600' : 'text-red-500'}`} title={`Compared to ${compareMode === 'prev_year' ? 'Previous Year' : 'Previous Period'}`}>
                     {trend.isPos ? <TrendingUp size={12} className="mr-0.5" /> : <TrendingDown size={12} className="mr-0.5" />}
                     {trend.text}
+                    <span className="text-[9px] font-normal text-slate-400 ml-1">
+                      vs {compareMode === 'prev_year' ? 'last year' : 'last period'}
+                    </span>
                   </div>
                 )}
               </div>

@@ -8,7 +8,9 @@ export interface DataRow {
   views: number;
   engTime: number;
   engRate: number;
-  keyEvents: number;
+  source: string;
+  medium: string;
+  campaign: string;
   impressions: number;
   clicks: number;
   ctr: number;
@@ -32,6 +34,7 @@ export interface FilterState {
   country: string;
   dateFrom: string;
   dateTo: string;
+  compareMode: 'prev_period' | 'prev_year' | 'none';
 }
 
 export interface SortState {

@@ -44,10 +44,10 @@ export function DataTable({ data, pageListActive, pageQueries, onShowPage, onRem
 
   const handleExportCSV = () => {
     if (!filteredData.length) { alert('No data to export'); return; }
-    const hdr = ['No.', 'Page', 'Page Title', 'Users', 'Sessions', 'Views', 'Avg Eng Time (s)', 'Engagement Rate', 'Key Events', 'Impressions', 'Clicks', 'CTR', 'Avg Position'];
+    const hdr = ['No.', 'Page', 'Page Title', 'Users', 'Sessions', 'Views', 'Avg Eng Time (s)', 'Engagement Rate', 'Impressions', 'Clicks', 'CTR', 'Avg Position'];
     const rows = filteredData.map((r, i) => [
       i + 1, r.page, (r.pageTitle || '').replace(/,/g, ' '), r.users, r.sessions, r.views,
-      (r.engTime || 0).toFixed(1), (r.engRate || 0).toFixed(4), r.keyEvents, r.impressions, r.clicks, (r.ctr || 0).toFixed(4), (r.position || 0).toFixed(1)
+      (r.engTime || 0).toFixed(1), (r.engRate || 0).toFixed(4), r.impressions, r.clicks, (r.ctr || 0).toFixed(4), (r.position || 0).toFixed(1)
     ]);
     const csv = [hdr, ...rows].map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
@@ -106,7 +106,6 @@ export function DataTable({ data, pageListActive, pageQueries, onShowPage, onRem
               <th className="p-3 font-semibold text-[11px] uppercase tracking-wider cursor-pointer whitespace-nowrap hover:text-indigo-600 transition-colors text-right" onClick={() => handleSort('views')}>Views <span className="text-[9px] bg-slate-200 px-1 rounded ml-1">GA4</span><SortIcon field="views" /></th>
               <th className="p-3 font-semibold text-[11px] uppercase tracking-wider cursor-pointer whitespace-nowrap hover:text-indigo-600 transition-colors text-right" onClick={() => handleSort('engTime')}>Avg Eng.Time <span className="text-[9px] bg-slate-200 px-1 rounded ml-1">GA4</span><SortIcon field="engTime" /></th>
               <th className="p-3 font-semibold text-[11px] uppercase tracking-wider cursor-pointer whitespace-nowrap hover:text-indigo-600 transition-colors text-right" onClick={() => handleSort('engRate')}>Eng.Rate <span className="text-[9px] bg-slate-200 px-1 rounded ml-1">GA4</span><SortIcon field="engRate" /></th>
-              <th className="p-3 font-semibold text-[11px] uppercase tracking-wider cursor-pointer whitespace-nowrap hover:text-indigo-600 transition-colors text-right" onClick={() => handleSort('keyEvents')}>Key Events <span className="text-[9px] bg-slate-200 px-1 rounded ml-1">GA4</span><SortIcon field="keyEvents" /></th>
               <th className="p-3 font-semibold text-[11px] uppercase tracking-wider cursor-pointer whitespace-nowrap hover:text-indigo-600 transition-colors text-right" onClick={() => handleSort('impressions')}>Impressions <span className="text-[9px] bg-slate-200 px-1 rounded ml-1">GSC</span><SortIcon field="impressions" /></th>
               <th className="p-3 font-semibold text-[11px] uppercase tracking-wider cursor-pointer whitespace-nowrap hover:text-indigo-600 transition-colors text-right" onClick={() => handleSort('clicks')}>Clicks <span className="text-[9px] bg-slate-200 px-1 rounded ml-1">GSC</span><SortIcon field="clicks" /></th>
               <th className="p-3 font-semibold text-[11px] uppercase tracking-wider cursor-pointer whitespace-nowrap hover:text-indigo-600 transition-colors text-right" onClick={() => handleSort('ctr')}>CTR <span className="text-[9px] bg-slate-200 px-1 rounded ml-1">GSC</span><SortIcon field="ctr" /></th>
@@ -167,7 +166,6 @@ export function DataTable({ data, pageListActive, pageQueries, onShowPage, onRem
                     <td className="p-3 text-right tabular-nums whitespace-nowrap text-slate-600">{r.views === 0 ? '–' : formatNumber(r.views)}</td>
                     <td className="p-3 text-right tabular-nums whitespace-nowrap text-slate-600">{r.engTime === 0 ? '–' : formatTime(r.engTime)}</td>
                     <td className={`p-3 text-right tabular-nums whitespace-nowrap ${ec}`}>{r.engRate === 0 ? '–' : formatPercent(r.engRate)}</td>
-                    <td className="p-3 text-right tabular-nums whitespace-nowrap text-slate-600">{r.keyEvents === 0 ? '–' : formatNumber(r.keyEvents)}</td>
                     <td className="p-3 text-right tabular-nums whitespace-nowrap text-slate-600">{r.impressions === 0 ? '–' : formatNumber(r.impressions)}</td>
                     <td className="p-3 text-right tabular-nums whitespace-nowrap text-slate-600 font-medium">{r.clicks === 0 ? '–' : formatNumber(r.clicks)}</td>
                     <td className="p-3 text-right tabular-nums whitespace-nowrap text-slate-600">{r.ctr === 0 ? '–' : formatPercent(r.ctr)}</td>

@@ -3,6 +3,7 @@ import { Header } from './components/Header';
 import { AuthSection } from './components/AuthSection';
 import { PageListSection } from './components/PageListSection';
 import { FilterSection } from './components/FilterSection';
+import { AIInsights } from './components/AIInsights';
 import { SummaryCards } from './components/SummaryCards';
 import { ChartsSection } from './components/ChartsSection';
 import { GlobalDashboards } from './components/GlobalDashboards';
@@ -17,18 +18,25 @@ export default function App() {
   const [filteredData, setFilteredData] = useState<DataRow[]>([]);
   const [prevFilteredData, setPrevFilteredData] = useState<DataRow[]>([]);
   const [tableData, setTableData] = useState<DataRow[]>([]);
+  const [deviceData, setDeviceData] = useState<{device: string; users: number; views: number}[]>([]);
   
   const [propId, setPropId] = useState('283309066');
   const [siteUrl, setSiteUrl] = useState('https://www.bnhhospital.com/');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [pageList, setPageList] = useState<PageListEntry[]>([]);
   const [pageListActive, setPageListActive] = useState(false);
+  const [geminiKey, setGeminiKey] = useState(localStorage.getItem('geminiKey') || '');
+
+  useEffect(() => {
+    localStorage.setItem('geminiKey', geminiKey);
+  }, [geminiKey]);
   
   const [filters, setFilters] = useState<FilterState>({
     country: 'all',
     dateFrom: '',
-    dateTo: ''
+    dateTo: '',
+    compareMode: 'prev_period'
   });
   
   const [status, setStatus] = useState<StatusState>({ msg: '', type: 'info', visible: false });
@@ -39,12 +47,14 @@ export default function App() {
   const [activeUsers, setActiveUsers] = useState<number | null>(null);
 
   const checkAuthStatus = useCallback(async () => {
+    setIsCheckingAuth(true);
     try {
       // First check health
       const healthRes = await fetch('/api/health');
       if (!healthRes.ok) {
         console.error('Server health check failed');
         showStatus('❌ เซิร์ฟเวอร์มีปัญหา กรุณารีเฟรชหน้าจอ', 'error');
+        setIsCheckingAuth(false);
         return;
       }
 
@@ -61,6 +71,7 @@ export default function App() {
       console.error('Failed to check auth status', e);
       showStatus('❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้', 'error');
     }
+    setIsCheckingAuth(false);
   }, []);
 
   useEffect(() => {
@@ -195,14 +206,14 @@ export default function App() {
     try {
       const today = new Date();
       const start = new Date(today);
-      start.setFullYear(start.getFullYear() - 1);
+      start.setMonth(start.getMonth() - 6);
       const sDate = start.toISOString().split('T')[0];
       const eDate = today.toISOString().split('T')[0];
 
       const gaData = await proxyFetch('GA4', `https://analyticsdata.googleapis.com/v1beta/properties/${propId}:runReport`, 'POST', {
         dateRanges: [{ startDate: sDate, endDate: eDate }],
-        dimensions: [{ name: 'date' }, { name: 'pagePath' }, { name: 'country' }],
-        metrics: [{ name: 'activeUsers' }, { name: 'sessions' }, { name: 'screenPageViews' }, { name: 'averageSessionDuration' }, { name: 'engagementRate' }, { name: 'keyEvents' }],
+        dimensions: [{ name: 'date' }, { name: 'pagePath' }, { name: 'country' }, { name: 'sessionSource' }, { name: 'sessionMedium' }, { name: 'sessionCampaignName' }],
+        metrics: [{ name: 'activeUsers' }, { name: 'sessions' }, { name: 'screenPageViews' }, { name: 'averageSessionDuration' }, { name: 'engagementRate' }],
         orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
         limit: 200000
       });
@@ -211,11 +222,29 @@ export default function App() {
         const [yr, mo, dy] = r.dimensionValues[0].value.match(/(.{4})(.{2})(.{2})/).slice(1);
         return {
           date: `${yr}-${mo}-${dy}`, page: r.dimensionValues[1].value, country: r.dimensionValues[2].value,
+          source: r.dimensionValues[3].value, medium: r.dimensionValues[4].value, campaign: r.dimensionValues[5].value,
           users: +r.metricValues[0].value, sessions: +r.metricValues[1].value, views: +r.metricValues[2].value,
-          engTime: +r.metricValues[3].value, engRate: +r.metricValues[4].value, keyEvents: +r.metricValues[5].value,
+          engTime: +r.metricValues[3].value, engRate: +r.metricValues[4].value,
           impressions: 0, clicks: 0, ctr: 0, position: 0
         };
       });
+
+      // Fetch Device Data
+      try {
+        const deviceDataRes = await proxyFetch('GA4-Device', `https://analyticsdata.googleapis.com/v1beta/properties/${propId}:runReport`, 'POST', {
+          dateRanges: [{ startDate: sDate, endDate: eDate }],
+          dimensions: [{ name: 'deviceCategory' }],
+          metrics: [{ name: 'users' }, { name: 'screenPageViews' }]
+        });
+        const deviceRows = (deviceDataRes.rows || []).map((r: any) => ({
+          device: r.dimensionValues[0].value,
+          users: +r.metricValues[0].value,
+          views: +r.metricValues[1].value
+        }));
+        setDeviceData(deviceRows);
+      } catch (err) {
+        console.warn('Failed to fetch device data', err);
+      }
 
       // Fetch Realtime Data
       try {
@@ -231,28 +260,39 @@ export default function App() {
       gscStart.setMonth(gscStart.getMonth() - 6);
       const gscSDate = gscStart.toISOString().split('T')[0];
 
-      setLoadingProgress(40);
-      setLoadingMsg(`กำลังโหลด Search Console... (GA4: ${gaRows.length.toLocaleString()} rows)`);
-      showStatus(`⏳ กำลังโหลด Search Console... (GA4: ${gaRows.length.toLocaleString()} rows)`, 'info');
+      const B_main = siteUrl.split(',')[0].trim().replace(/\/$/, '');
+      const siteUrls = siteUrl.split(',').map(u => u.trim()).filter(Boolean);
+      const allGscRows: any[] = [];
 
-      const gscData = await proxyFetch('GSC', `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`, 'POST', {
-        startDate: gscSDate, endDate: eDate,
-        dimensions: ['date', 'page', 'country'], rowLimit: 25000
-      });
+      for (const url of siteUrls) {
+        setLoadingProgress(40);
+        setLoadingMsg(`กำลังโหลด Search Console (${url})...`);
+        showStatus(`⏳ กำลังโหลด Search Console (${url})...`, 'info');
 
-      const B = siteUrl.replace(/\/$/, '');
-      const gscRows = (gscData.rows || []).map((r: any) => {
-        let pg = r.keys[1] || '';
-        if (pg.startsWith(B)) pg = pg.slice(B.length) || '/';
-        return {
-          date: r.keys[0], page: pg, country: (r.keys[2] || '').toLowerCase(),
-          impressions: r.impressions || 0, clicks: r.clicks || 0, ctr: r.ctr || 0, position: r.position || 0
-        };
-      });
+        try {
+          const gscData = await proxyFetch('GSC', `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(url)}/searchAnalytics/query`, 'POST', {
+            startDate: gscSDate, endDate: eDate,
+            dimensions: ['date', 'page', 'country'], rowLimit: 25000
+          });
+
+          const B = url.replace(/\/$/, '');
+          const gscRows = (gscData.rows || []).map((r: any) => {
+            let pg = r.keys[1] || '';
+            if (pg.startsWith(B)) pg = pg.slice(B.length) || '/';
+            return {
+              date: r.keys[0], page: pg, country: (r.keys[2] || '').toLowerCase(),
+              impressions: r.impressions || 0, clicks: r.clicks || 0, ctr: r.ctr || 0, position: r.position || 0
+            };
+          });
+          allGscRows.push(...gscRows);
+        } catch (e: any) {
+          console.warn(`GSC Fetch failed for ${url}`, e);
+        }
+      }
 
       const map = new Map<string, DataRow>();
-      gaRows.forEach((r: any) => map.set(`${r.date}|${r.page}|${r.country}`, { ...r }));
-      gscRows.forEach((r: any) => {
+      gaRows.forEach((r: any) => map.set(`${r.date}|${r.page}|${r.country}|${r.source}|${r.medium}|${r.campaign}`, { ...r }));
+      allGscRows.forEach((r: any) => {
         const pk = `${r.date}|${r.page}`;
         let found = false;
         for (let [k, v] of map) {
@@ -263,9 +303,10 @@ export default function App() {
             found = true; break;
           }
         }
-        if (!found) map.set(`${pk}|${r.country}_g`, {
+        if (!found) map.set(`${pk}|${r.country}_g|||`, {
           date: r.date, page: r.page, country: r.country,
-          users: 0, sessions: 0, views: 0, engTime: 0, engRate: 0, keyEvents: 0,
+          source: '', medium: '', campaign: '',
+          users: 0, sessions: 0, views: 0, engTime: 0, engRate: 0,
           impressions: r.impressions, clicks: r.clicks, ctr: r.ctr, position: r.position
         });
       });
@@ -277,19 +318,27 @@ export default function App() {
       setLoadingMsg(`กำลังโหลด Keywords จาก Search Console...`);
       showStatus(`⏳ กำลังโหลด Keywords จาก Search Console...`, 'info');
       
-      const gscKwData = await proxyFetch('GSC-Keywords', `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`, 'POST', {
-        startDate: gscSDate, endDate: eDate,
-        dimensions: ['country', 'page', 'query'], rowLimit: 25000
-      });
-
       const kwMap: Record<string, PageQuery[]> = {};
-      (gscKwData.rows || []).forEach((r: any) => {
-        const country = (r.keys[0] || '').toLowerCase();
-        let pg = r.keys[1] || '';
-        if (pg.startsWith(B)) pg = pg.slice(B.length) || '/';
-        if (!kwMap[pg]) kwMap[pg] = [];
-        kwMap[pg].push({ query: r.keys[2], clicks: r.clicks || 0, impressions: r.impressions || 0, country });
-      });
+
+      for (const url of siteUrls) {
+        try {
+          const gscKwData = await proxyFetch('GSC-Keywords', `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(url)}/searchAnalytics/query`, 'POST', {
+            startDate: gscSDate, endDate: eDate,
+            dimensions: ['country', 'page', 'query'], rowLimit: 25000
+          });
+
+          const B = url.replace(/\/$/, '');
+          (gscKwData.rows || []).forEach((r: any) => {
+            const country = (r.keys[0] || '').toLowerCase();
+            let pg = r.keys[1] || '';
+            if (pg.startsWith(B)) pg = pg.slice(B.length) || '/';
+            if (!kwMap[pg]) kwMap[pg] = [];
+            kwMap[pg].push({ query: r.keys[2], clicks: r.clicks || 0, impressions: r.impressions || 0, country });
+          });
+        } catch (e: any) {
+          console.warn(`GSC Keyword Fetch failed for ${url}`, e);
+        }
+      }
       setPageQueries(kwMap);
 
       setLoadingProgress(100);
@@ -346,24 +395,32 @@ export default function App() {
   };
 
   const applyFilters = useCallback(() => {
-    const { country, dateFrom, dateTo } = filters;
+    const { country, dateFrom, dateTo, compareMode } = filters;
     
     let prevDateFromStr = '';
     let prevDateToStr = '';
-    if (dateFrom && dateTo) {
+    
+    if (dateFrom && dateTo && compareMode !== 'none') {
       const dFrom = new Date(dateFrom);
       const dTo = new Date(dateTo);
-      const diffTime = Math.abs(dTo.getTime() - dFrom.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       
-      const pTo = new Date(dFrom);
-      pTo.setDate(pTo.getDate() - 1);
-      
-      const pFrom = new Date(pTo);
-      pFrom.setDate(pFrom.getDate() - diffDays);
-      
-      prevDateFromStr = pFrom.toISOString().split('T')[0];
-      prevDateToStr = pTo.toISOString().split('T')[0];
+      if (compareMode === 'prev_period') {
+        const diffTime = Math.abs(dTo.getTime() - dFrom.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const pTo = new Date(dFrom);
+        pTo.setDate(pTo.getDate() - 1);
+        const pFrom = new Date(pTo);
+        pFrom.setDate(pFrom.getDate() - diffDays);
+        prevDateFromStr = pFrom.toISOString().split('T')[0];
+        prevDateToStr = pTo.toISOString().split('T')[0];
+      } else if (compareMode === 'prev_year') {
+        const pTo = new Date(dTo);
+        pTo.setFullYear(pTo.getFullYear() - 1);
+        const pFrom = new Date(dFrom);
+        pFrom.setFullYear(pFrom.getFullYear() - 1);
+        prevDateFromStr = pFrom.toISOString().split('T')[0];
+        prevDateToStr = pTo.toISOString().split('T')[0];
+      }
     }
 
     const filterLogic = (r: DataRow, from: string, to: string) => {
@@ -399,7 +456,8 @@ export default function App() {
             page: p.path,
             pageTitle: p.title || (p.type === 'keyword' ? `[Keyword] ${p.path}` : getTitle(p.path)),
             country: 'all',
-            users: 0, sessions: 0, views: 0, engTime: 0, engRate: 0, keyEvents: 0,
+            source: 'all', medium: 'all', campaign: 'all',
+            users: 0, sessions: 0, views: 0, engTime: 0, engRate: 0,
             impressions: 0, clicks: 0, ctr: 0, position: 0, _ec: 0, _pc: 0, _erc: 0
           });
         }
@@ -419,7 +477,7 @@ export default function App() {
           if (isMatch) {
             const k = p.type === 'keyword' ? `keyword:${p.path.toLowerCase()}` : `url:${p.path.toLowerCase().replace(/\/+$/, '') || '/'}`;
             const v = agg.get(k)!;
-            v.users += r.users; v.sessions += r.sessions; v.views += r.views; v.keyEvents += r.keyEvents;
+            v.users += r.users; v.sessions += r.sessions; v.views += r.views;
             v.impressions += r.impressions; v.clicks += r.clicks;
             if (r.engTime > 0) { v.engTime += r.engTime; v._ec++; }
             if (r.position > 0) { v.position += r.position; v._pc++; }
@@ -436,12 +494,13 @@ export default function App() {
             page: r.page,
             pageTitle: r.pageTitle || getTitle(r.page),
             country: 'all',
-            users: 0, sessions: 0, views: 0, engTime: 0, engRate: 0, keyEvents: 0,
+            source: 'all', medium: 'all', campaign: 'all',
+            users: 0, sessions: 0, views: 0, engTime: 0, engRate: 0,
             impressions: 0, clicks: 0, ctr: 0, position: 0, _ec: 0, _pc: 0, _erc: 0
           });
         }
         const v = agg.get(k)!;
-        v.users += r.users; v.sessions += r.sessions; v.views += r.views; v.keyEvents += r.keyEvents;
+        v.users += r.users; v.sessions += r.sessions; v.views += r.views;
         v.impressions += r.impressions; v.clicks += r.clicks;
         if (r.engTime > 0) { v.engTime += r.engTime; v._ec++; }
         if (r.position > 0) { v.position += r.position; v._pc++; }
@@ -472,20 +531,10 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 font-sans text-slate-800 pb-10">
-      <Header />
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 font-sans text-slate-800 dark:text-slate-200 pb-10 transition-colors">
+      {isAuthenticated && <Header />}
       
-      <div className="p-6 md:px-8 max-w-[1600px] mx-auto">
-        <AuthSection 
-          propId={propId} setPropId={setPropId}
-          siteUrl={siteUrl} setSiteUrl={setSiteUrl}
-          isAuthenticated={isAuthenticated}
-          onLogin={handleLogin}
-          onLogout={handleLogout}
-          onLoadData={handleLoadData}
-          onShowTokenHelp={() => setModals(m => ({ ...m, tokenHelp: true }))}
-        />
-
+      <div id="dashboard-content" className="p-6 md:px-8 max-w-[1600px] mx-auto bg-slate-100 dark:bg-slate-900 transition-colors">
         {status.visible && (
           <div className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold mb-4 ${statusColors[status.type]}`}>
             <div className="w-2 h-2 rounded-full bg-current shrink-0" />
@@ -493,52 +542,97 @@ export default function App() {
           </div>
         )}
 
-        <PageListSection 
-          pageList={pageList} setPageList={setPageList}
-          pageListActive={pageListActive}
-          onApplyFilter={() => {
-            if (!pageList.length) { alert('กรุณาเพิ่ม URL หรือ keyword ใน Page List ก่อน'); return; }
-            setPageListActive(true);
-            showStatus(`📋 กรองข้อมูลตาม Page List ${pageList.length} รายการ`, 'info');
-          }}
-          onClearFilter={() => {
-            setPageListActive(false);
-            showStatus('🗑️ ล้าง Page List แล้ว', 'warn');
-          }}
-          onShowStatus={showStatus}
-        />
+        {isCheckingAuth ? (
+          <div className="flex flex-col items-center justify-center min-h-[60vh] text-slate-500">
+             <div className="w-10 h-10 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+             กำลังตรวจสอบสิทธิ์การเข้าถึง...
+          </div>
+        ) : !isAuthenticated ? (
+          <div className="max-w-xl mx-auto mt-20">
+            <div className="bg-white p-8 border border-indigo-100 rounded-3xl shadow-xl shadow-indigo-900/5 text-center mb-8">
+              <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <h2 className="text-2xl font-bold text-slate-800 mb-3">เข้าสู่ระบบเพื่อเข้าดูข้อมูล</h2>
+              <p className="text-slate-500 mb-8 text-sm leading-relaxed px-4">
+                ระบบจัดการสิทธิ์การเข้าถึงฐานข้อมูล การดำเนินการนี้ต้องการสิทธิ์ Google Account ที่ได้รับอนุญาตสิทธิ์ระดับ GA4 และ GSC ของตัวเว็บไซต์ BNH หรือ MBrace โดยตรงเท่านั้น
+              </p>
+              
+              <button 
+                onClick={handleLogin} 
+                className="w-full px-5 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[15px] font-bold transition-all flex items-center justify-center gap-3 shadow-md hover:shadow-lg shadow-indigo-600/20 active:scale-[0.98]"
+              >
+                <img src="https://www.google.com/favicon.ico" className="w-5 h-5 bg-white rounded-full p-0.5" alt="Google" referrerPolicy="no-referrer" />
+                Connect with Google Account
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <AuthSection 
+              propId={propId} setPropId={setPropId}
+              siteUrl={siteUrl} setSiteUrl={setSiteUrl}
+              isAuthenticated={isAuthenticated}
+              onLogin={handleLogin}
+              onLogout={handleLogout}
+              onLoadData={handleLoadData}
+              onShowTokenHelp={() => setModals(m => ({ ...m, tokenHelp: true }))}
+              geminiKey={geminiKey}
+              setGeminiKey={setGeminiKey}
+            />
 
-        <FilterSection filters={filters} setFilters={setFilters} onApply={applyFilters} availableCountries={availableCountries} />
-        
-        <SummaryCards data={filteredData} prevData={prevFilteredData} activeUsers={activeUsers} onRealtimeClick={() => setModals(m => ({ ...m, realtime: true }))} />
-        
-        <ChartsSection data={filteredData} />
-        <GlobalDashboards data={filteredData} prevData={prevFilteredData} pageQueries={pageQueries} countryFilter={filters.country} />
-        
-        <DataTable 
-          data={tableData} 
-          pageListActive={pageListActive} 
-          pageQueries={pageQueries}
-          onShowPage={path => setModals(m => ({ ...m, pageDetail: path }))} 
-          onRemoveItem={(path, isKeyword) => {
-            setPageList(prev => prev.filter(p => !(p.path === path && (p.type === 'keyword') === isKeyword)));
-            showStatus(`🗑️ ลบ ${path} ออกจาก List แล้ว`, 'warn');
-          }}
-        />
+            <PageListSection 
+              pageList={pageList} setPageList={setPageList}
+              pageListActive={pageListActive}
+              onApplyFilter={() => {
+                if (!pageList.length) { alert('กรุณาเพิ่ม URL หรือ keyword ใน Page List ก่อน'); return; }
+                setPageListActive(true);
+                showStatus(`📋 กรองข้อมูลตาม Page List ${pageList.length} รายการ`, 'info');
+              }}
+              onClearFilter={() => {
+                setPageListActive(false);
+                showStatus('🗑️ ล้าง Page List แล้ว', 'warn');
+              }}
+              onShowStatus={showStatus}
+            />
+
+            <FilterSection filters={filters} setFilters={setFilters} onApply={applyFilters} availableCountries={availableCountries} />
+            
+            <AIInsights data={filteredData} pageQueries={pageQueries} geminiKey={geminiKey} />
+
+            <SummaryCards data={filteredData} prevData={prevFilteredData} activeUsers={activeUsers} compareMode={filters.compareMode} onRealtimeClick={() => setModals(m => ({ ...m, realtime: true }))} />
+            
+            <ChartsSection data={filteredData} deviceData={deviceData} />
+            <GlobalDashboards data={filteredData} prevData={prevFilteredData} pageQueries={pageQueries} countryFilter={filters.country} />
+            
+            <DataTable 
+              data={tableData} 
+              pageListActive={pageListActive} 
+              pageQueries={pageQueries}
+              onShowPage={path => setModals(m => ({ ...m, pageDetail: path }))} 
+              onRemoveItem={(path, isKeyword) => {
+                setPageList(prev => prev.filter(p => !(p.path === path && (p.type === 'keyword') === isKeyword)));
+                showStatus(`🗑️ ลบ ${path} ออกจาก List แล้ว`, 'warn');
+              }}
+            />
+          </>
+        )}
       </div>
 
       {modals.tokenHelp && <TokenModal onClose={() => setModals(m => ({ ...m, tokenHelp: false }))} />}
       {modals.realtime && <RealtimeModal propId={propId} isAuthenticated={isAuthenticated} onClose={() => setModals(m => ({ ...m, realtime: false }))} />}
-      {modals.pageDetail && <PageDetailModal path={modals.pageDetail} isKeyword={modals.pageDetail.startsWith('[Keyword]')} pageListActive={pageListActive} data={filteredData} pageQueries={pageQueries} countryFilter={filters.country} siteUrl={siteUrl} onClose={() => setModals(m => ({ ...m, pageDetail: null }))} />}
+      {modals.pageDetail && <PageDetailModal path={modals.pageDetail} isKeyword={modals.pageDetail.startsWith('[Keyword]')} pageListActive={pageListActive} data={filteredData} pageQueries={pageQueries} countryFilter={filters.country} siteUrl={siteUrl.split(',')[0].trim()} onClose={() => setModals(m => ({ ...m, pageDetail: null }))} />}
       
       {isLoading && (
-        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center">
-          <div className="bg-white p-8 rounded-2xl shadow-xl flex flex-col items-center max-w-sm w-full mx-4 border border-slate-100">
+        <div className="fixed inset-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center">
+          <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-xl flex flex-col items-center max-w-sm w-full mx-4 border border-slate-100 dark:border-slate-700">
             <div className="w-12 h-12 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-            <div className="text-lg font-bold text-indigo-900 mb-1">กำลังนำเข้าข้อมูล...</div>
-            <div className="text-sm font-medium text-slate-500 mb-6 text-center h-5">{loadingMsg}</div>
+            <div className="text-lg font-bold text-indigo-900 dark:text-white mb-1">กำลังนำเข้าข้อมูล...</div>
+            <div className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-6 text-center h-5">{loadingMsg}</div>
             
-            <div className="w-full bg-slate-100 rounded-full h-2.5 mb-2 overflow-hidden">
+            <div className="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2.5 mb-2 overflow-hidden">
               <div className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500 ease-out" style={{ width: `${loadingProgress}%` }}></div>
             </div>
             <div className="text-xs font-bold text-slate-400 text-right w-full">{loadingProgress}%</div>

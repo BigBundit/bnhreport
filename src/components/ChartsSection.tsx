@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { DataRow } from '../types';
 
 interface ChartsSectionProps {
   data: DataRow[];
+  deviceData?: { device: string; users: number; views: number }[];
 }
 
 type Granularity = 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -22,7 +23,7 @@ const getGroupKey = (dateStr: string, granularity: Granularity) => {
   return dateStr;
 };
 
-export function ChartsSection({ data }: ChartsSectionProps) {
+export function ChartsSection({ data, deviceData = [] }: ChartsSectionProps) {
   const [granularity, setGranularity] = useState<Granularity>('daily');
 
   const chartData = useMemo(() => {
@@ -52,7 +53,7 @@ export function ChartsSection({ data }: ChartsSectionProps) {
           <option value="yearly">📅 รายปี (Yearly)</option>
         </select>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4.5">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4.5">
         <div className="bg-white rounded-xl p-4.5 shadow-sm">
           <h3 className="text-[13px] text-indigo-900 font-bold mb-3 flex items-center gap-1.5">
             📈 Traffic {titleSuffix} <span className="bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded text-[9px] font-bold">GA</span>
@@ -87,6 +88,38 @@ export function ChartsSection({ data }: ChartsSectionProps) {
                 <Bar yAxisId="right" dataKey="c" name="Clicks" fill="rgba(46,125,50,0.7)" radius={[2, 2, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
+          </div>
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-4.5 shadow-sm">
+          <h3 className="text-[13px] text-indigo-900 dark:text-indigo-100 font-bold mb-3 flex items-center gap-1.5">
+            📱 Devices <span className="bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded text-[9px] font-bold">GA4</span>
+          </h3>
+          <div className="h-[210px] flex items-center justify-center">
+            {deviceData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={deviceData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={80}
+                    paddingAngle={2}
+                    dataKey="users"
+                    nameKey="device"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    labelLine={false}
+                  >
+                    {deviceData.map((entry, index) => {
+                      const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899'];
+                      return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
+                    })}
+                  </Pie>
+                  <Tooltip formatter={(value: number) => value.toLocaleString()} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="text-slate-400 text-xs">No device data</div>
+            )}
           </div>
         </div>
       </div>
