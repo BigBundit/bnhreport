@@ -62,19 +62,32 @@ export function AIInsights({ data, pageQueries, geminiKey }: AIInsightsProps) {
   // Helper to safely render markdown-like text simply
   const formatText = (text: string) => {
     return text.split('\n').map((line, i) => {
-      if (line.startsWith('##')) return <h3 key={i} className="text-[14px] font-bold text-slate-800 mt-3 mb-1">{line.replace(/#/g, '').trim()}</h3>;
-      if (line.startsWith('#')) return <h2 key={i} className="text-[16px] font-bold text-indigo-700 mt-4 mb-2">{line.replace(/#/g, '').trim()}</h2>;
-      if (line.startsWith('- ') || line.startsWith('* ')) return <li key={i} className="ml-4 mb-1 list-disc text-slate-700">{line.substring(2).replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')}</li>;
+      if (line.trim() === '') return null;
       
-      // Handle bold text inline
-      const bolded = line.split(/(\*\*.*?\*\*)/g).map((part, idx) => {
-        if (part.startsWith('**') && part.endsWith('**')) {
-          return <strong key={idx} className="font-semibold text-slate-900">{part.slice(2, -2)}</strong>;
-        }
-        return part;
-      });
+      const processBold = (str: string) => {
+        return str.split(/(\*\*.*?\*\*|\*.*?\*)/g).map((part, idx) => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            return <strong key={idx} className="font-semibold text-slate-900">{part.slice(2, -2)}</strong>;
+          }
+          if (part.startsWith('*') && part.endsWith('*')) {
+            return <strong key={idx} className="font-semibold text-slate-900">{part.slice(1, -1)}</strong>;
+          }
+          return part;
+        });
+      };
+
+      if (line.startsWith('### ')) return <h4 key={i} className="text-[14px] font-bold text-slate-800 mt-4 mb-2">{processBold(line.replace(/###/g, '').trim())}</h4>;
+      if (line.startsWith('## ')) return <h3 key={i} className="text-[15px] font-bold text-slate-800 mt-4 mb-2">{processBold(line.replace(/##/g, '').trim())}</h3>;
+      if (line.startsWith('# ')) return <h2 key={i} className="text-[17px] font-bold text-indigo-700 mt-5 mb-3">{processBold(line.replace(/#/g, '').trim())}</h2>;
+      if (line.startsWith('- ') || line.startsWith('* ')) return <li key={i} className="ml-5 mb-1.5 list-disc text-slate-700 leading-relaxed">{processBold(line.substring(2).trim())}</li>;
       
-      return line.trim() ? <p key={i} className="mb-2 text-slate-600 leading-relaxed">{bolded}</p> : null;
+      // Handle numbered lists
+      if (/^\d+\.\s/.test(line)) {
+        const match = line.match(/^\d+\.\s(.*)/);
+        if (match) return <li key={i} className="ml-5 mb-1.5 list-decimal text-slate-700 leading-relaxed">{processBold(match[1])}</li>;
+      }
+      
+      return <p key={i} className="mb-3 text-slate-600 leading-relaxed">{processBold(line.trim())}</p>;
     });
   };
 
