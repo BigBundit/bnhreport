@@ -234,7 +234,7 @@ export default function App() {
         const deviceDataRes = await proxyFetch('GA4-Device', `https://analyticsdata.googleapis.com/v1beta/properties/${propId}:runReport`, 'POST', {
           dateRanges: [{ startDate: sDate, endDate: eDate }],
           dimensions: [{ name: 'deviceCategory' }],
-          metrics: [{ name: 'users' }, { name: 'screenPageViews' }]
+          metrics: [{ name: 'activeUsers' }, { name: 'screenPageViews' }]
         });
         const deviceRows = (deviceDataRes.rows || []).map((r: any) => ({
           device: r.dimensionValues[0].value,
