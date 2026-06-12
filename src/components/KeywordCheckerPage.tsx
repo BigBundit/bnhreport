@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Search, Download, FileSearch, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Search, Download, FileSearch, ExternalLink, Eye } from 'lucide-react';
 import { getTitle, formatNumber, formatPercent, formatPosition, exportToCSV } from '../utils';
 
 interface KwPageRow {
@@ -40,6 +40,7 @@ export function KeywordCheckerPage({ siteUrl, proxyFetch, onBack }: KeywordCheck
   const [isSearching, setIsSearching] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [results, setResults] = useState<KwResult[] | null>(null);
+  const [detailPage, setDetailPage] = useState<KwPageRow | null>(null);
 
   const keywordCount = keywordsText.split('\n').map(k => k.trim()).filter(Boolean).length;
 
@@ -305,18 +306,34 @@ export function KeywordCheckerPage({ siteUrl, proxyFetch, onBack }: KeywordCheck
                       <tbody>
                         {r.rows.map((row, i) => (
                           <tr key={`${row.pageUrl}-${i}`} className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors">
-                            <td className="px-4 py-2.5 text-slate-800 font-medium max-w-[280px] truncate" title={row.title}>{row.title}</td>
-                            <td className="px-4 py-2.5 max-w-[340px]">
-                              <a
-                                href={row.pageUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-indigo-600 hover:text-indigo-700 hover:underline font-mono text-[11px] flex items-center gap-1"
-                                title={row.pageUrl}
+                            <td className="px-4 py-2.5 max-w-[280px]">
+                              <button
+                                onClick={() => setDetailPage(row)}
+                                className="text-slate-800 font-medium truncate w-full text-left hover:text-indigo-600 hover:underline cursor-pointer"
+                                title={`${row.title} – คลิกเพื่อดู keywords ทั้งหมดของหน้านี้`}
                               >
-                                <span className="truncate">{row.page}</span>
-                                <ExternalLink size={11} className="shrink-0" />
-                              </a>
+                                {row.title}
+                              </button>
+                            </td>
+                            <td className="px-4 py-2.5 max-w-[340px]">
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => setDetailPage(row)}
+                                  className="text-indigo-600 hover:text-indigo-700 hover:underline font-mono text-[11px] truncate text-left cursor-pointer"
+                                  title={`${row.pageUrl} – คลิกเพื่อดู keywords ทั้งหมดของหน้านี้`}
+                                >
+                                  {row.page}
+                                </button>
+                                <a
+                                  href={row.pageUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-slate-400 hover:text-indigo-600 shrink-0 transition-colors"
+                                  title="เปิดหน้าเว็บจริง"
+                                >
+                                  <ExternalLink size={11} />
+                                </a>
+                              </div>
                             </td>
                             <td className="px-4 py-2.5 text-right font-semibold text-slate-800">{formatNumber(row.clicks)}</td>
                             <td className="px-4 py-2.5 text-right text-slate-600">{formatNumber(row.impressions)}</td>
@@ -333,6 +350,181 @@ export function KeywordCheckerPage({ siteUrl, proxyFetch, onBack }: KeywordCheck
           </div>
         </div>
       )}
+
+      {detailPage && (
+        <PageKeywordsModal
+          row={detailPage}
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          proxyFetch={proxyFetch}
+          searchedKeywords={new Set((results || []).map(r => r.keyword))}
+          onClose={() => setDetailPage(null)}
+        />
+      )}
     </>
+  );
+}
+
+interface PageKwRow {
+  query: string;
+  clicks: number;
+  impressions: number;
+  ctr: number;
+  position: number;
+}
+
+interface PageKeywordsModalProps {
+  row: KwPageRow;
+  dateFrom: string;
+  dateTo: string;
+  proxyFetch: (service: string, url: string, method?: string, body?: any) => Promise<any>;
+  searchedKeywords: Set<string>;
+  onClose: () => void;
+}
+
+function PageKeywordsModal({ row, dateFrom, dateTo, proxyFetch, searchedKeywords, onClose }: PageKeywordsModalProps) {
+  const [rows, setRows] = useState<PageKwRow[] | null>(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    setRows(null);
+    setError('');
+    (async () => {
+      try {
+        const data = await proxyFetch('GSC-PageKw', `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(row.site)}/searchAnalytics/query`, 'POST', {
+          startDate: dateFrom,
+          endDate: dateTo,
+          dimensions: ['query'],
+          dimensionFilterGroups: [{
+            filters: [{ dimension: 'page', operator: 'equals', expression: row.pageUrl }]
+          }],
+          rowLimit: 1000
+        });
+        if (cancelled) return;
+        const kwRows: PageKwRow[] = (data.rows || []).map((r: any) => ({
+          query: r.keys?.[0] || '',
+          clicks: r.clicks || 0,
+          impressions: r.impressions || 0,
+          ctr: r.ctr || 0,
+          position: r.position || 0
+        }));
+        kwRows.sort((a, b) => b.clicks - a.clicks || b.impressions - a.impressions);
+        setRows(kwRows);
+      } catch (e: any) {
+        if (!cancelled) setError(e.message);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [row.pageUrl, row.site, dateFrom, dateTo]);
+
+  const totals = rows && rows.length ? {
+    clicks: rows.reduce((s, r) => s + r.clicks, 0),
+    impressions: rows.reduce((s, r) => s + r.impressions, 0)
+  } : null;
+  const avgCtr = totals && totals.impressions > 0 ? totals.clicks / totals.impressions : 0;
+  const avgPos = rows && rows.length
+    ? rows.reduce((s, r) => s + r.position * r.impressions, 0) / Math.max(1, rows.reduce((s, r) => s + r.impressions, 0))
+    : 0;
+
+  const handleExport = () => {
+    if (!rows) return;
+    exportToCSV(
+      `BNH_Page_Keywords_${row.page.replace(/[^a-z0-9ก-๙]+/gi, '_').slice(0, 60)}_${dateFrom}_${dateTo}`,
+      ['Keyword', 'Total Clicks', 'Total Impressions', 'Avg CTR', 'Avg Position'],
+      rows.map(r => [r.query, r.clicks, r.impressions, (r.ctr * 100).toFixed(2) + '%', r.position.toFixed(1)])
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-6 max-w-[900px] w-full max-h-[88vh] shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex justify-between items-start mb-1 shrink-0 gap-3">
+          <div className="min-w-0">
+            <h2 className="text-indigo-900 text-[15px] font-bold truncate" title={row.title}>📄 {row.title}</h2>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="font-mono text-[11px] text-slate-500 truncate" title={row.pageUrl}>{row.page}</span>
+              <a
+                href={row.pageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-semibold hover:bg-indigo-100 transition-all shrink-0"
+              >
+                <Eye size={12} /> ดูหน้าเว็บจริง
+              </a>
+            </div>
+          </div>
+          <button onClick={onClose} className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-semibold hover:bg-slate-200 transition-all shrink-0">✕</button>
+        </div>
+        <div className="text-[11px] text-slate-400 mb-4 shrink-0">Keywords ที่ติดอันดับในหน้านี้ • ช่วงวันที่ {dateFrom} ถึง {dateTo}</div>
+
+        {!rows && !error && (
+          <div className="flex flex-col items-center justify-center py-16 text-slate-500 text-[13px]">
+            <div className="w-8 h-8 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin mb-3"></div>
+            กำลังโหลด keywords จาก Search Console...
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-red-50 text-red-700 rounded-xl px-4 py-3 text-[12px] font-medium">เกิดข้อผิดพลาด: {error}</div>
+        )}
+
+        {rows && rows.length === 0 && (
+          <div className="text-center py-16 text-slate-400 text-[13px]">ไม่พบ keyword ที่ติดอันดับในหน้านี้ในช่วงวันที่เลือก</div>
+        )}
+
+        {rows && rows.length > 0 && (
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3 shrink-0">
+              <div className="flex items-center gap-4 text-[11px] text-slate-500 font-medium">
+                <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-lg font-bold">{rows.length.toLocaleString()} keywords</span>
+                <span>Clicks: <b className="text-slate-700">{formatNumber(totals!.clicks)}</b></span>
+                <span>Impressions: <b className="text-slate-700">{formatNumber(totals!.impressions)}</b></span>
+                <span>CTR: <b className="text-slate-700">{formatPercent(avgCtr)}</b></span>
+                <span>Position: <b className="text-slate-700">{formatPosition(avgPos)}</b></span>
+              </div>
+              <button
+                onClick={handleExport}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold transition-colors"
+              >
+                <Download size={14} /> Export CSV
+              </button>
+            </div>
+
+            <div className="overflow-y-auto border border-slate-200/60 rounded-xl">
+              <table className="w-full text-[12px]">
+                <thead className="sticky top-0 bg-slate-50 z-10">
+                  <tr className="text-left text-[10px] text-slate-400 uppercase tracking-wider">
+                    <th className="px-4 py-2.5 font-semibold">Keyword</th>
+                    <th className="px-4 py-2.5 font-semibold text-right">Total Clicks</th>
+                    <th className="px-4 py-2.5 font-semibold text-right">Total Impressions</th>
+                    <th className="px-4 py-2.5 font-semibold text-right">Avg CTR</th>
+                    <th className="px-4 py-2.5 font-semibold text-right">Avg Position</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r, i) => (
+                    <tr key={`${r.query}-${i}`} className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors">
+                      <td className="px-4 py-2 text-slate-800 font-medium">
+                        <span className="flex items-center gap-2">
+                          {r.query}
+                          {searchedKeywords.has(r.query.toLowerCase()) && (
+                            <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded text-[9px] font-bold shrink-0" title="อยู่ในรายการที่ค้นหา">ค้นหา</span>
+                          )}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-right font-semibold text-slate-800">{formatNumber(r.clicks)}</td>
+                      <td className="px-4 py-2 text-right text-slate-600">{formatNumber(r.impressions)}</td>
+                      <td className="px-4 py-2 text-right text-slate-600">{formatPercent(r.ctr)}</td>
+                      <td className="px-4 py-2 text-right text-slate-600">{formatPosition(r.position)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
