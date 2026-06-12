@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Search, Download, FileSearch, ExternalLink, Eye } from 'lucide-react';
+import { ArrowLeft, Search, Download, FileSearch, ExternalLink, Eye, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { getTitle, formatNumber, formatPercent, formatPosition, exportToCSV } from '../utils';
 
 interface KwPageRow {
@@ -28,6 +28,52 @@ interface KeywordCheckerPageProps {
 const CONCURRENCY = 4;
 const MAX_KEYWORDS = 500;
 
+interface SortState {
+  field: string;
+  dir: 1 | -1;
+}
+
+// Text columns start ascending, numeric columns start descending; clicking again flips.
+function toggleSort(s: SortState, field: string, textFields: string[]): SortState {
+  if (s.field === field) return { field, dir: s.dir === 1 ? -1 : 1 };
+  return { field, dir: textFields.includes(field) ? 1 : -1 };
+}
+
+function sortBy<T>(rows: T[], sort: SortState): T[] {
+  return [...rows].sort((a: any, b: any) => {
+    const av = a[sort.field];
+    const bv = b[sort.field];
+    if (typeof av === 'string' || typeof bv === 'string') {
+      return sort.dir * String(av ?? '').localeCompare(String(bv ?? ''), 'th');
+    }
+    return sort.dir * ((av ?? 0) - (bv ?? 0));
+  });
+}
+
+function SortableTh({ label, field, sort, onSort, align = 'left' }: {
+  label: string;
+  field: string;
+  sort: SortState;
+  onSort: (field: string) => void;
+  align?: 'left' | 'right';
+}) {
+  const active = sort.field === field;
+  return (
+    <th className={`px-4 py-2 font-semibold ${align === 'right' ? 'text-right' : 'text-left'}`}>
+      <button
+        onClick={() => onSort(field)}
+        className={`inline-flex items-center gap-1 uppercase tracking-wider transition-colors hover:text-indigo-600 cursor-pointer ${active ? 'text-indigo-600' : ''}`}
+        title={`เรียงตาม ${label}`}
+      >
+        {label}
+        {active
+          ? (sort.dir === 1 ? <ChevronUp size={11} className="shrink-0" /> : <ChevronDown size={11} className="shrink-0" />)
+          : <ChevronsUpDown size={11} className="shrink-0 opacity-40" />}
+      </button>
+    </th>
+  );
+}
+
 export function KeywordCheckerPage({ siteUrl, proxyFetch, onBack }: KeywordCheckerPageProps) {
   const today = new Date();
   const start = new Date(today);
@@ -41,6 +87,9 @@ export function KeywordCheckerPage({ siteUrl, proxyFetch, onBack }: KeywordCheck
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [results, setResults] = useState<KwResult[] | null>(null);
   const [detailPage, setDetailPage] = useState<KwPageRow | null>(null);
+  const [sort, setSort] = useState<SortState>({ field: 'clicks', dir: -1 });
+
+  const handleSort = (field: string) => setSort(s => toggleSort(s, field, ['title', 'page']));
 
   const keywordCount = keywordsText.split('\n').map(k => k.trim()).filter(Boolean).length;
 
@@ -126,7 +175,7 @@ export function KeywordCheckerPage({ siteUrl, proxyFetch, onBack }: KeywordCheck
       if (!r.rows.length) {
         data.push([r.keyword, r.error ? `Error: ${r.error}` : 'ไม่พบ', '', '', '', '', '']);
       } else {
-        r.rows.forEach(row => {
+        sortBy<KwPageRow>(r.rows, sort).forEach(row => {
           data.push([r.keyword, row.title, row.pageUrl, row.clicks, row.impressions, (row.ctr * 100).toFixed(2) + '%', row.position.toFixed(1)]);
         });
       }
@@ -294,17 +343,17 @@ export function KeywordCheckerPage({ siteUrl, proxyFetch, onBack }: KeywordCheck
                   {r.rows.length > 0 && (
                     <table className="w-full text-[12px]">
                       <thead>
-                        <tr className="text-left text-[10px] text-slate-400 uppercase tracking-wider">
-                          <th className="px-4 py-2 font-semibold">Page Title</th>
-                          <th className="px-4 py-2 font-semibold">Page (URL)</th>
-                          <th className="px-4 py-2 font-semibold text-right">Total Clicks</th>
-                          <th className="px-4 py-2 font-semibold text-right">Total Impressions</th>
-                          <th className="px-4 py-2 font-semibold text-right">Avg CTR</th>
-                          <th className="px-4 py-2 font-semibold text-right">Avg Position</th>
+                        <tr className="text-[10px] text-slate-400">
+                          <SortableTh label="Page Title" field="title" sort={sort} onSort={handleSort} />
+                          <SortableTh label="Page (URL)" field="page" sort={sort} onSort={handleSort} />
+                          <SortableTh label="Total Clicks" field="clicks" sort={sort} onSort={handleSort} align="right" />
+                          <SortableTh label="Total Impressions" field="impressions" sort={sort} onSort={handleSort} align="right" />
+                          <SortableTh label="Avg CTR" field="ctr" sort={sort} onSort={handleSort} align="right" />
+                          <SortableTh label="Avg Position" field="position" sort={sort} onSort={handleSort} align="right" />
                         </tr>
                       </thead>
                       <tbody>
-                        {r.rows.map((row, i) => (
+                        {sortBy<KwPageRow>(r.rows, sort).map((row, i) => (
                           <tr key={`${row.pageUrl}-${i}`} className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors">
                             <td className="px-4 py-2.5 max-w-[280px]">
                               <button
@@ -385,6 +434,10 @@ interface PageKeywordsModalProps {
 function PageKeywordsModal({ row, dateFrom, dateTo, proxyFetch, searchedKeywords, onClose }: PageKeywordsModalProps) {
   const [rows, setRows] = useState<PageKwRow[] | null>(null);
   const [error, setError] = useState('');
+  const [sort, setSort] = useState<SortState>({ field: 'clicks', dir: -1 });
+
+  const handleSort = (field: string) => setSort(s => toggleSort(s, field, ['query']));
+  const sortedRows = rows ? sortBy<PageKwRow>(rows, sort) : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -432,7 +485,7 @@ function PageKeywordsModal({ row, dateFrom, dateTo, proxyFetch, searchedKeywords
     exportToCSV(
       `BNH_Page_Keywords_${row.page.replace(/[^a-z0-9ก-๙]+/gi, '_').slice(0, 60)}_${dateFrom}_${dateTo}`,
       ['Keyword', 'Total Clicks', 'Total Impressions', 'Avg CTR', 'Avg Position'],
-      rows.map(r => [r.query, r.clicks, r.impressions, (r.ctr * 100).toFixed(2) + '%', r.position.toFixed(1)])
+      sortBy<PageKwRow>(rows, sort).map(r => [r.query, r.clicks, r.impressions, (r.ctr * 100).toFixed(2) + '%', r.position.toFixed(1)])
     );
   };
 
@@ -494,16 +547,16 @@ function PageKeywordsModal({ row, dateFrom, dateTo, proxyFetch, searchedKeywords
             <div className="overflow-y-auto border border-slate-200/60 rounded-xl">
               <table className="w-full text-[12px]">
                 <thead className="sticky top-0 bg-slate-50 z-10">
-                  <tr className="text-left text-[10px] text-slate-400 uppercase tracking-wider">
-                    <th className="px-4 py-2.5 font-semibold">Keyword</th>
-                    <th className="px-4 py-2.5 font-semibold text-right">Total Clicks</th>
-                    <th className="px-4 py-2.5 font-semibold text-right">Total Impressions</th>
-                    <th className="px-4 py-2.5 font-semibold text-right">Avg CTR</th>
-                    <th className="px-4 py-2.5 font-semibold text-right">Avg Position</th>
+                  <tr className="text-[10px] text-slate-400">
+                    <SortableTh label="Keyword" field="query" sort={sort} onSort={handleSort} />
+                    <SortableTh label="Total Clicks" field="clicks" sort={sort} onSort={handleSort} align="right" />
+                    <SortableTh label="Total Impressions" field="impressions" sort={sort} onSort={handleSort} align="right" />
+                    <SortableTh label="Avg CTR" field="ctr" sort={sort} onSort={handleSort} align="right" />
+                    <SortableTh label="Avg Position" field="position" sort={sort} onSort={handleSort} align="right" />
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r, i) => (
+                  {sortedRows!.map((r, i) => (
                     <tr key={`${r.query}-${i}`} className="border-t border-slate-100 hover:bg-slate-50/60 transition-colors">
                       <td className="px-4 py-2 text-slate-800 font-medium">
                         <span className="flex items-center gap-2">
