@@ -177,6 +177,7 @@ app.get('/api/auth/status', async (req, res) => {
 app.post('/api/auth/logout', async (req, res) => {
   const sessionId = req.cookies.session_id;
   if (sessionId) {
+    accessTokenCache.delete(sessionId);
     try {
       await db.execute({
         sql: "DELETE FROM oauth_tokens WHERE id = ?",
@@ -190,10 +191,19 @@ app.post('/api/auth/logout', async (req, res) => {
   res.json({ success: true });
 });
 
+// Access tokens last ~1 hour; cache them so bulk requests (e.g. keyword checks)
+// don't hit Google's token endpoint once per proxied call.
+const accessTokenCache = new Map<string, { token: string; expiresAt: number }>();
+
 async function getAccessToken(req: express.Request) {
   const sessionId = req.cookies.session_id;
   if (!sessionId) {
     throw new Error('No session ID');
+  }
+
+  const cached = accessTokenCache.get(sessionId);
+  if (cached && cached.expiresAt > Date.now() + 60_000) {
+    return cached.token;
   }
 
   const tokens = await getTokens(sessionId);
@@ -201,8 +211,6 @@ async function getAccessToken(req: express.Request) {
     throw new Error('No refresh token available');
   }
 
-  // If token is still valid (we could check expiry, but simpler to just refresh if needed or always refresh for now)
-  // For simplicity, let's just refresh it
   try {
     const response = await axios.post('https://oauth2.googleapis.com/token', {
       client_id: CLIENT_ID,
@@ -213,6 +221,10 @@ async function getAccessToken(req: express.Request) {
 
     const newTokens = { ...tokens, ...response.data };
     await saveTokens(sessionId, newTokens);
+    accessTokenCache.set(sessionId, {
+      token: newTokens.access_token,
+      expiresAt: Date.now() + (response.data.expires_in || 3600) * 1000
+    });
     return newTokens.access_token;
   } catch (error: any) {
     console.error('Error refreshing token:', error.response?.data || error.message);

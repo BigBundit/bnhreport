@@ -1,5 +1,5 @@
 import React from 'react';
-import { Key, Play, Database, Info } from 'lucide-react';
+import { Key, Play, Database, Info, FileSearch } from 'lucide-react';
 
 interface AuthSectionProps {
   propId: string;
@@ -13,13 +13,15 @@ interface AuthSectionProps {
   onShowTokenHelp: () => void;
   geminiKey: string;
   setGeminiKey: (v: string) => void;
+  onOpenKeywordChecker: () => void;
 }
 
 export function AuthSection({
   propId, setPropId, siteUrl, setSiteUrl,
   isAuthenticated, onLogin, onLogout,
   onLoadData, onShowTokenHelp,
-  geminiKey, setGeminiKey
+  geminiKey, setGeminiKey,
+  onOpenKeywordChecker
 }: AuthSectionProps) {
   return (
     <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60 mb-6">
@@ -99,8 +101,15 @@ export function AuthSection({
               </button>
             ) : (
               <div className="flex gap-2 w-full">
-                <button 
-                  onClick={onLoadData} 
+                <button
+                  onClick={onOpenKeywordChecker}
+                  className="px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-[13px] font-semibold hover:bg-emerald-700 active:bg-emerald-800 transition-all flex items-center justify-center gap-1.5 shadow-sm whitespace-nowrap"
+                  title="ตรวจสอบคีย์เวิร์ดจำนวนมากใน Search Console"
+                >
+                  <FileSearch size={15} /> Keyword
+                </button>
+                <button
+                  onClick={onLoadData}
                   className="flex-1 px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-[13px] font-semibold hover:bg-indigo-700 active:bg-indigo-800 transition-all flex items-center justify-center gap-2 shadow-sm whitespace-nowrap"
                 >
                   <Play size={16} fill="currentColor" /> Load Data

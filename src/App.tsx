@@ -9,6 +9,7 @@ import { ChartsSection } from './components/ChartsSection';
 import { GlobalDashboards } from './components/GlobalDashboards';
 import { DataTable } from './components/DataTable';
 import { TokenModal, PageDetailModal, RealtimeModal } from './components/Modals';
+import { KeywordCheckerPage } from './components/KeywordCheckerPage';
 import { DataRow, PageListEntry, FilterState, StatusState, PageQuery } from './types';
 import { getTitle } from './utils';
 
@@ -25,6 +26,7 @@ export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [pageList, setPageList] = useState<PageListEntry[]>([]);
+  const [view, setView] = useState<'dashboard' | 'keyword'>('dashboard');
   const [pageListActive, setPageListActive] = useState(false);
   const [geminiKey, setGeminiKey] = useState(localStorage.getItem('geminiKey') || '');
 
@@ -569,9 +571,15 @@ export default function App() {
               </button>
             </div>
           </div>
+        ) : view === 'keyword' ? (
+          <KeywordCheckerPage
+            siteUrl={siteUrl}
+            proxyFetch={proxyFetch}
+            onBack={() => setView('dashboard')}
+          />
         ) : (
           <>
-            <AuthSection 
+            <AuthSection
               propId={propId} setPropId={setPropId}
               siteUrl={siteUrl} setSiteUrl={setSiteUrl}
               isAuthenticated={isAuthenticated}
@@ -581,6 +589,7 @@ export default function App() {
               onShowTokenHelp={() => setModals(m => ({ ...m, tokenHelp: true }))}
               geminiKey={geminiKey}
               setGeminiKey={setGeminiKey}
+              onOpenKeywordChecker={() => setView('keyword')}
             />
 
             <PageListSection 
